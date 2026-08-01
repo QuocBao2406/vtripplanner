@@ -6,3 +6,176 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum AppRole {
+  USER
+  PARTNER
+  ADMIN
+}
+
+enum PartnerApprovalStatus {
+  NOT_APPLIED
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum TravelPace {
+  RELAXED
+  BALANCED
+  ACTIVE
+}
+
+enum BudgetLevel {
+  ECONOMY
+  STANDARD
+  PREMIUM
+}
+
+model User {
+  id          String          @id @db.Uuid
+  email       String?         @unique @db.VarChar(320)
+  isActive    Boolean         @default(true)
+  lastLoginAt DateTime?       @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(6)
+  deletedAt   DateTime?       @db.Timestamptz(6)
+  profile     UserProfile?
+  consent     UserConsent?
+  preference  UserPreference?
+  userRoles   UserRole[]
+  auditLogs   AuditLog[]      @relation("AuditLogActor")
+
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model UserProfile {
+  userId      String    @id @db.Uuid
+  fullName    String?   @db.VarChar(150)
+  displayName String?   @db.VarChar(80)
+  avatarUrl   String?   @db.VarChar(2048)
+  bio         String?   @db.VarChar(500)
+  phone       String?   @db.VarChar(30)
+  dateOfBirth DateTime? @db.Date
+  city        String?   @db.VarChar(100)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([displayName])
+  @@index([city])
+  @@map("user_profiles")
+}
+
+model UserConsent {
+  userId                 String   @id @db.Uuid
+  termsAccepted          Boolean  @default(false)
+  privacyAccepted        Boolean  @default(false)
+  locationConsent        Boolean  @default(false)
+  personalizationConsent Boolean  @default(false)
+  marketingConsent       Boolean  @default(false)
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_consents")
+}
+
+model UserPreference {
+  userId                  String      @id @db.Uuid
+  travelPace              TravelPace  @default(BALANCED)
+  preferredTransports     String[]    @default([])
+  preferredAccommodations String[]    @default([])
+  preferredActivities     String[]    @default([])
+  preferredDestinations   String[]    @default([])
+  avoidedActivities       String[]    @default([])
+  maximumWalkingDistance  Int?
+  preferredStartTime      DateTime?   @db.Time(0)
+  preferredEndTime        DateTime?   @db.Time(0)
+  defaultBudgetLevel      BudgetLevel @default(STANDARD)
+  dietaryNotes            String?     @db.VarChar(500)
+  accessibilityNotes      String?     @db.VarChar(500)
+  createdAt               DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime    @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Role {
+  id              String           @id @default(uuid()) @db.Uuid
+  name            AppRole          @unique
+  description     String?          @db.VarChar(255)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(6)
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@index([isActive])
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(uuid()) @db.Uuid
+  code            String           @unique @db.VarChar(100)
+  name            String           @db.VarChar(150)
+  description     String?          @db.VarChar(500)
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(6)
+  rolePermissions RolePermission[]
+
+  @@index([isActive])
+  @@map("permissions")
+}
+
+model UserRole {
+  userId     String   @db.Uuid
+  roleId     String   @db.Uuid
+  assignedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String   @db.Uuid
+  permissionId String   @db.Uuid
+  assignedAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String   @db.VarChar(100)
+  entityType  String   @db.VarChar(100)
+  entityId    String?  @db.VarChar(100)
+  metadata    Json?    @db.JsonB
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  actor User? @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
