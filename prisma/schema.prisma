@@ -45,6 +45,18 @@ enum PlaceVerificationStatus {
   SUSPENDED
 }
 
+enum TravelPace {
+  RELAXED
+  BALANCED
+  ACTIVE
+}
+
+enum BudgetLevel {
+  ECONOMY
+  STANDARD
+  PREMIUM
+}
+
 enum DayOfWeek {
   MONDAY
   TUESDAY
@@ -79,16 +91,40 @@ enum PlacePriceUnit {
   OTHER
 }
 
-enum TravelPace {
-  RELAXED
-  BALANCED
-  ACTIVE
+enum TripStatus {
+  DRAFT
+  PLANNING
+  READY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ARCHIVED
 }
 
-enum BudgetLevel {
-  ECONOMY
-  STANDARD
-  PREMIUM
+enum ParticipantAgeGroup {
+  ADULT
+  CHILD
+  INFANT
+  SENIOR
+}
+
+enum TripActivityType {
+  TRANSPORT
+  VISIT
+  MEAL
+  ACCOMMODATION
+  REST
+  FREE_TIME
+  OTHER
+}
+
+enum TripPriceCategory {
+  TRANSPORT
+  ACCOMMODATION
+  FOOD
+  TICKET
+  ACTIVITY
+  OTHER
 }
 
 model User {
@@ -106,6 +142,7 @@ model User {
   reviewedPartners Partner[]       @relation("PartnerReviewer")
   createdPlaces    Place[]         @relation("PlaceCreator")
   reviewedPlaces   Place[]         @relation("PlaceReviewer")
+  ownedTrips       Trip[]          @relation("TripOwner")
   userRoles        UserRole[]
   auditLogs        AuditLog[]      @relation("AuditLogActor")
 
@@ -296,6 +333,7 @@ model Province {
   updatedAt DateTime   @updatedAt @db.Timestamptz(6)
   districts District[]
   places    Place[]
+  trips     Trip[]
 
   @@index([name])
   @@index([isActive])
@@ -314,6 +352,7 @@ model District {
 
   province Province @relation(fields: [provinceId], references: [id], onDelete: Restrict)
   places   Place[]
+  trips    Trip[]
 
   @@unique([provinceId, slug])
   @@index([provinceId])
@@ -367,16 +406,17 @@ model Place {
   updatedAt          DateTime                @updatedAt @db.Timestamptz(6)
   deletedAt          DateTime?               @db.Timestamptz(6)
 
-  partner       Partner?           @relation(fields: [partnerId], references: [id], onDelete: SetNull)
-  partnerBranch PartnerBranch?     @relation(fields: [partnerBranchId], references: [id], onDelete: SetNull)
-  category      PlaceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  province      Province           @relation(fields: [provinceId], references: [id], onDelete: Restrict)
-  district      District?          @relation(fields: [districtId], references: [id], onDelete: SetNull)
-  createdBy     User?              @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  reviewedBy    User?              @relation("PlaceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  images        PlaceImage[]
-  openingHours  PlaceOpeningHour[]
-  prices        PlacePrice[]
+  partner        Partner?           @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerBranch  PartnerBranch?     @relation(fields: [partnerBranchId], references: [id], onDelete: SetNull)
+  category       PlaceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  province       Province           @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  district       District?          @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  createdBy      User?              @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy     User?              @relation("PlaceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  images         PlaceImage[]
+  openingHours   PlaceOpeningHour[]
+  prices         PlacePrice[]
+  tripActivities TripActivity[]
 
   @@index([partnerId])
   @@index([partnerBranchId])
@@ -455,6 +495,126 @@ model PlacePrice {
   @@index([audience])
   @@index([validFrom, validUntil])
   @@map("place_prices")
+}
+
+model Trip {
+  id                    String     @id @default(uuid()) @db.Uuid
+  ownerUserId           String     @db.Uuid
+  destinationProvinceId String?    @db.Uuid
+  destinationDistrictId String?    @db.Uuid
+  title                 String     @default("Chuyến đi mới") @db.VarChar(200)
+  originName            String?    @db.VarChar(255)
+  originLatitude        Decimal?   @db.Decimal(9, 6)
+  originLongitude       Decimal?   @db.Decimal(10, 6)
+  startDate             DateTime?  @db.Date
+  endDate               DateTime?  @db.Date
+  totalBudget           Decimal?   @db.Decimal(14, 2)
+  currency              String     @default("VND") @db.VarChar(3)
+  currentStep           Int        @default(1)
+  status                TripStatus @default(DRAFT)
+  notes                 String?    @db.VarChar(2000)
+  createdAt             DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime   @updatedAt @db.Timestamptz(6)
+  deletedAt             DateTime?  @db.Timestamptz(6)
+
+  owner               User              @relation("TripOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  destinationProvince Province?         @relation(fields: [destinationProvinceId], references: [id], onDelete: SetNull)
+  destinationDistrict District?         @relation(fields: [destinationDistrictId], references: [id], onDelete: SetNull)
+  participants        TripParticipant[]
+  days                TripDay[]
+
+  @@index([ownerUserId])
+  @@index([destinationProvinceId])
+  @@index([destinationDistrictId])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([deletedAt])
+  @@map("trips")
+}
+
+model TripParticipant {
+  id          String              @id @default(uuid()) @db.Uuid
+  tripId      String              @db.Uuid
+  displayName String              @db.VarChar(150)
+  ageGroup    ParticipantAgeGroup @default(ADULT)
+  ageAtTrip   Int?
+  sortOrder   Int                 @default(0)
+  notes       String?             @db.VarChar(500)
+  createdAt   DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(6)
+
+  trip   Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  prices TripParticipantPrice[]
+
+  @@index([tripId])
+  @@index([tripId, sortOrder])
+  @@index([ageGroup])
+  @@map("trip_participants")
+}
+
+model TripDay {
+  id        String   @id @default(uuid()) @db.Uuid
+  tripId    String   @db.Uuid
+  dayNumber Int
+  date      DateTime @db.Date
+  title     String?  @db.VarChar(200)
+  notes     String?  @db.VarChar(1000)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  trip       Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  activities TripActivity[]
+
+  @@unique([tripId, dayNumber])
+  @@unique([tripId, date])
+  @@index([tripId])
+  @@index([date])
+  @@map("trip_days")
+}
+
+model TripActivity {
+  id          String           @id @default(uuid()) @db.Uuid
+  tripDayId   String           @db.Uuid
+  placeId     String?          @db.Uuid
+  type        TripActivityType
+  title       String           @db.VarChar(200)
+  description String?          @db.VarChar(2000)
+  startsAt    DateTime         @db.Timestamptz(6)
+  endsAt      DateTime         @db.Timestamptz(6)
+  sortOrder   Int              @default(0)
+  notes       String?          @db.VarChar(1000)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
+
+  tripDay TripDay @relation(fields: [tripDayId], references: [id], onDelete: Cascade)
+  place   Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  @@index([tripDayId])
+  @@index([tripDayId, sortOrder])
+  @@index([placeId])
+  @@index([type])
+  @@index([startsAt])
+  @@map("trip_activities")
+}
+
+model TripParticipantPrice {
+  id            String            @id @default(uuid()) @db.Uuid
+  participantId String            @db.Uuid
+  category      TripPriceCategory
+  label         String            @db.VarChar(150)
+  amount        Decimal           @db.Decimal(14, 2)
+  currency      String            @default("VND") @db.VarChar(3)
+  sortOrder     Int               @default(0)
+  notes         String?           @db.VarChar(1000)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @db.Timestamptz(6)
+
+  participant TripParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId])
+  @@index([participantId, sortOrder])
+  @@index([category])
+  @@map("trip_participant_prices")
 }
 
 model AuditLog {
