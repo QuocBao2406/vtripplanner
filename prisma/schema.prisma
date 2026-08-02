@@ -21,6 +21,22 @@ enum PartnerApprovalStatus {
   SUSPENDED
 }
 
+enum PartnerType {
+  HOTEL
+  HOMESTAY
+  RESORT
+  RESTAURANT
+  EATERY
+  CAFE
+  ENTERTAINMENT_VENUE
+  TOURIST_ATTRACTION
+  TRANSPORT_PROVIDER
+  RESCUE_SERVICE
+  VEHICLE_REPAIR
+  TRAVEL_SERVICE
+  OTHER
+}
+
 enum TravelPace {
   RELAXED
   BALANCED
@@ -34,18 +50,20 @@ enum BudgetLevel {
 }
 
 model User {
-  id          String          @id @db.Uuid
-  email       String?         @unique @db.VarChar(320)
-  isActive    Boolean         @default(true)
-  lastLoginAt DateTime?       @db.Timestamptz(6)
-  createdAt   DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime        @updatedAt @db.Timestamptz(6)
-  deletedAt   DateTime?       @db.Timestamptz(6)
-  profile     UserProfile?
-  consent     UserConsent?
-  preference  UserPreference?
-  userRoles   UserRole[]
-  auditLogs   AuditLog[]      @relation("AuditLogActor")
+  id               String          @id @db.Uuid
+  email            String?         @unique @db.VarChar(320)
+  isActive         Boolean         @default(true)
+  lastLoginAt      DateTime?       @db.Timestamptz(6)
+  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @db.Timestamptz(6)
+  deletedAt        DateTime?       @db.Timestamptz(6)
+  profile          UserProfile?
+  consent          UserConsent?
+  preference       UserPreference?
+  ownedPartner     Partner?        @relation("PartnerOwner")
+  reviewedPartners Partner[]       @relation("PartnerReviewer")
+  userRoles        UserRole[]
+  auditLogs        AuditLog[]      @relation("AuditLogActor")
 
   @@index([isActive])
   @@index([deletedAt])
@@ -160,6 +178,66 @@ model RolePermission {
   @@id([roleId, permissionId])
   @@index([permissionId])
   @@map("role_permissions")
+}
+
+model Partner {
+  id                 String                @id @default(uuid()) @db.Uuid
+  ownerUserId        String                @unique @db.Uuid
+  reviewedByUserId   String?               @db.Uuid
+  name               String                @db.VarChar(200)
+  slug               String                @unique @db.VarChar(200)
+  type               PartnerType
+  description        String?               @db.VarChar(2000)
+  logoUrl            String?               @db.VarChar(2048)
+  phone              String?               @db.VarChar(30)
+  email              String?               @db.VarChar(320)
+  websiteUrl         String?               @db.VarChar(2048)
+  taxCode            String?               @db.VarChar(50)
+  businessLicenseUrl String?               @db.VarChar(2048)
+  approvalStatus     PartnerApprovalStatus @default(NOT_APPLIED)
+  rejectionReason    String?               @db.VarChar(1000)
+  submittedAt        DateTime?             @db.Timestamptz(6)
+  reviewedAt         DateTime?             @db.Timestamptz(6)
+  createdAt          DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt          DateTime?             @db.Timestamptz(6)
+
+  owner      User            @relation("PartnerOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  reviewedBy User?           @relation("PartnerReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  branches   PartnerBranch[]
+
+  @@index([reviewedByUserId])
+  @@index([type])
+  @@index([approvalStatus])
+  @@index([deletedAt])
+  @@map("partners")
+}
+
+model PartnerBranch {
+  id           String    @id @default(uuid()) @db.Uuid
+  partnerId    String    @db.Uuid
+  name         String    @db.VarChar(200)
+  addressLine  String    @db.VarChar(255)
+  ward         String?   @db.VarChar(100)
+  district     String?   @db.VarChar(100)
+  province     String    @db.VarChar(100)
+  latitude     Decimal?  @db.Decimal(9, 6)
+  longitude    Decimal?  @db.Decimal(10, 6)
+  phone        String?   @db.VarChar(30)
+  email        String?   @db.VarChar(320)
+  isHeadOffice Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt    DateTime? @db.Timestamptz(6)
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+  @@index([province])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("partner_branches")
 }
 
 model AuditLog {
