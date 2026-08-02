@@ -37,6 +37,14 @@ enum PartnerType {
   OTHER
 }
 
+enum PlaceVerificationStatus {
+  DRAFT
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
 enum TravelPace {
   RELAXED
   BALANCED
@@ -62,6 +70,8 @@ model User {
   preference       UserPreference?
   ownedPartner     Partner?        @relation("PartnerOwner")
   reviewedPartners Partner[]       @relation("PartnerReviewer")
+  createdPlaces    Place[]         @relation("PlaceCreator")
+  reviewedPlaces   Place[]         @relation("PlaceReviewer")
   userRoles        UserRole[]
   auditLogs        AuditLog[]      @relation("AuditLogActor")
 
@@ -205,6 +215,7 @@ model Partner {
   owner      User            @relation("PartnerOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   reviewedBy User?           @relation("PartnerReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
   branches   PartnerBranch[]
+  places     Place[]
 
   @@index([reviewedByUserId])
   @@index([type])
@@ -232,12 +243,115 @@ model PartnerBranch {
   deletedAt    DateTime? @db.Timestamptz(6)
 
   partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  places  Place[]
 
   @@index([partnerId])
   @@index([province])
   @@index([isActive])
   @@index([deletedAt])
   @@map("partner_branches")
+}
+
+model Province {
+  id        String     @id @default(uuid()) @db.Uuid
+  code      String     @unique @db.VarChar(20)
+  name      String     @db.VarChar(100)
+  slug      String     @unique @db.VarChar(120)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+  districts District[]
+  places    Place[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("provinces")
+}
+
+model District {
+  id         String   @id @default(uuid()) @db.Uuid
+  provinceId String   @db.Uuid
+  code       String   @unique @db.VarChar(20)
+  name       String   @db.VarChar(100)
+  slug       String   @db.VarChar(120)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  province Province @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  places   Place[]
+
+  @@unique([provinceId, slug])
+  @@index([provinceId])
+  @@index([name])
+  @@index([isActive])
+  @@map("districts")
+}
+
+model PlaceCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(120)
+  slug        String   @unique @db.VarChar(120)
+  description String?  @db.VarChar(500)
+  iconName    String?  @db.VarChar(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  places      Place[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("place_categories")
+}
+
+model Place {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  partnerId          String?                 @db.Uuid
+  partnerBranchId    String?                 @db.Uuid
+  categoryId         String                  @db.Uuid
+  provinceId         String                  @db.Uuid
+  districtId         String?                 @db.Uuid
+  createdByUserId    String?                 @db.Uuid
+  reviewedByUserId   String?                 @db.Uuid
+  name               String                  @db.VarChar(200)
+  slug               String                  @unique @db.VarChar(220)
+  shortDescription   String?                 @db.VarChar(500)
+  description        String?                 @db.VarChar(5000)
+  addressLine        String                  @db.VarChar(255)
+  ward               String?                 @db.VarChar(100)
+  latitude           Decimal?                @db.Decimal(9, 6)
+  longitude          Decimal?                @db.Decimal(10, 6)
+  phone              String?                 @db.VarChar(30)
+  email              String?                 @db.VarChar(320)
+  websiteUrl         String?                 @db.VarChar(2048)
+  verificationStatus PlaceVerificationStatus @default(DRAFT)
+  rejectionReason    String?                 @db.VarChar(1000)
+  submittedAt        DateTime?               @db.Timestamptz(6)
+  reviewedAt         DateTime?               @db.Timestamptz(6)
+  isActive           Boolean                 @default(true)
+  createdAt          DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt          DateTime?               @db.Timestamptz(6)
+
+  partner       Partner?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerBranch PartnerBranch? @relation(fields: [partnerBranchId], references: [id], onDelete: SetNull)
+  category      PlaceCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  province      Province       @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  district      District?      @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  createdBy     User?          @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy    User?          @relation("PlaceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId])
+  @@index([partnerBranchId])
+  @@index([categoryId])
+  @@index([provinceId])
+  @@index([districtId])
+  @@index([createdByUserId])
+  @@index([reviewedByUserId])
+  @@index([verificationStatus])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("places")
 }
 
 model AuditLog {
