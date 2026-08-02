@@ -45,6 +45,40 @@ enum PlaceVerificationStatus {
   SUSPENDED
 }
 
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum PlacePriceAudience {
+  GENERAL
+  ADULT
+  CHILD
+  INFANT
+  SENIOR
+  STUDENT
+  GROUP
+  OTHER
+}
+
+enum PlacePriceUnit {
+  PERSON
+  ENTRY
+  HOUR
+  DAY
+  NIGHT
+  ROOM
+  VEHICLE
+  TABLE
+  PACKAGE
+  OTHER
+}
+
 enum TravelPace {
   RELAXED
   BALANCED
@@ -333,13 +367,16 @@ model Place {
   updatedAt          DateTime                @updatedAt @db.Timestamptz(6)
   deletedAt          DateTime?               @db.Timestamptz(6)
 
-  partner       Partner?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
-  partnerBranch PartnerBranch? @relation(fields: [partnerBranchId], references: [id], onDelete: SetNull)
-  category      PlaceCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  province      Province       @relation(fields: [provinceId], references: [id], onDelete: Restrict)
-  district      District?      @relation(fields: [districtId], references: [id], onDelete: SetNull)
-  createdBy     User?          @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  reviewedBy    User?          @relation("PlaceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  partner       Partner?           @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerBranch PartnerBranch?     @relation(fields: [partnerBranchId], references: [id], onDelete: SetNull)
+  category      PlaceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  province      Province           @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  district      District?          @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  createdBy     User?              @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy    User?              @relation("PlaceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  images        PlaceImage[]
+  openingHours  PlaceOpeningHour[]
+  prices        PlacePrice[]
 
   @@index([partnerId])
   @@index([partnerBranchId])
@@ -352,6 +389,72 @@ model Place {
   @@index([isActive])
   @@index([deletedAt])
   @@map("places")
+}
+
+model PlaceImage {
+  id          String   @id @default(uuid()) @db.Uuid
+  placeId     String   @db.Uuid
+  storagePath String   @db.VarChar(1024)
+  altText     String?  @db.VarChar(255)
+  caption     String?  @db.VarChar(500)
+  sortOrder   Int      @default(0)
+  isCover     Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@index([placeId, sortOrder])
+  @@index([placeId, isCover])
+  @@map("place_images")
+}
+
+model PlaceOpeningHour {
+  id            String    @id @default(uuid()) @db.Uuid
+  placeId       String    @db.Uuid
+  dayOfWeek     DayOfWeek
+  periodOrder   Int       @default(1)
+  openTime      DateTime? @db.Time(0)
+  closeTime     DateTime? @db.Time(0)
+  closesNextDay Boolean   @default(false)
+  isClosed      Boolean   @default(false)
+  isOpen24Hours Boolean   @default(false)
+  note          String?   @db.VarChar(500)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, dayOfWeek, periodOrder])
+  @@index([placeId])
+  @@index([dayOfWeek])
+  @@map("place_opening_hours")
+}
+
+model PlacePrice {
+  id              String             @id @default(uuid()) @db.Uuid
+  placeId         String             @db.Uuid
+  label           String             @db.VarChar(150)
+  audience        PlacePriceAudience @default(GENERAL)
+  unit            PlacePriceUnit
+  amount          Decimal            @db.Decimal(14, 2)
+  currency        String             @default("VND") @db.VarChar(3)
+  minimumQuantity Int?
+  maximumQuantity Int?
+  validFrom       DateTime?          @db.Date
+  validUntil      DateTime?          @db.Date
+  note            String?            @db.VarChar(1000)
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
+
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@index([placeId])
+  @@index([placeId, isActive])
+  @@index([audience])
+  @@index([validFrom, validUntil])
+  @@map("place_prices")
 }
 
 model AuditLog {
