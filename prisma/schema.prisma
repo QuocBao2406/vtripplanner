@@ -127,6 +127,53 @@ enum TripPriceCategory {
   OTHER
 }
 
+enum TransportMode {
+  MOTORBIKE
+  PRIVATE_CAR
+  TAXI_RIDE_HAILING
+  BUS
+  TRAIN
+  AIRPLANE
+  BOAT_FERRY
+  BICYCLE
+  WALKING
+  OTHER
+}
+
+enum AccommodationType {
+  HOTEL
+  RESORT
+  HOMESTAY
+  HOSTEL
+  APARTMENT
+  GUESTHOUSE
+  CAMPING
+  OTHER
+}
+
+enum TripConstraintType {
+  MOBILITY
+  ACCESSIBILITY
+  DIETARY
+  SCHEDULE
+  TRANSPORT
+  ACCOMMODATION
+  SAFETY
+  OTHER
+}
+
+enum ConstraintPriority {
+  PREFERENCE
+  IMPORTANT
+  REQUIRED
+}
+
+enum SavedPlacePriority {
+  OPTIONAL
+  PREFERRED
+  REQUIRED
+}
+
 model User {
   id               String          @id @db.Uuid
   email            String?         @unique @db.VarChar(320)
@@ -417,6 +464,7 @@ model Place {
   openingHours   PlaceOpeningHour[]
   prices         PlacePrice[]
   tripActivities TripActivity[]
+  savedInTrips   TripSavedPlace[]
 
   @@index([partnerId])
   @@index([partnerBranchId])
@@ -517,11 +565,16 @@ model Trip {
   updatedAt             DateTime   @updatedAt @db.Timestamptz(6)
   deletedAt             DateTime?  @db.Timestamptz(6)
 
-  owner               User              @relation("TripOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  destinationProvince Province?         @relation(fields: [destinationProvinceId], references: [id], onDelete: SetNull)
-  destinationDistrict District?         @relation(fields: [destinationDistrictId], references: [id], onDelete: SetNull)
-  participants        TripParticipant[]
-  days                TripDay[]
+  owner                   User                         @relation("TripOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  destinationProvince     Province?                    @relation(fields: [destinationProvinceId], references: [id], onDelete: SetNull)
+  destinationDistrict     District?                    @relation(fields: [destinationDistrictId], references: [id], onDelete: SetNull)
+  participants            TripParticipant[]
+  days                    TripDay[]
+  transportPreference     TripTransportPreference?
+  accommodationPreference TripAccommodationPreference?
+  preference              TripPreference?
+  constraints             TripConstraint[]
+  savedPlaces             TripSavedPlace[]
 
   @@index([ownerUserId])
   @@index([destinationProvinceId])
@@ -543,8 +596,9 @@ model TripParticipant {
   createdAt   DateTime            @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime            @updatedAt @db.Timestamptz(6)
 
-  trip   Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  prices TripParticipantPrice[]
+  trip        Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  prices      TripParticipantPrice[]
+  constraints TripConstraint[]
 
   @@index([tripId])
   @@index([tripId, sortOrder])
@@ -615,6 +669,111 @@ model TripParticipantPrice {
   @@index([participantId, sortOrder])
   @@index([category])
   @@map("trip_participant_prices")
+}
+
+model TripTransportPreference {
+  id                          String          @id @default(uuid()) @db.Uuid
+  tripId                      String          @unique @db.Uuid
+  mainMode                    TransportMode?
+  localModes                  TransportMode[] @default([])
+  avoidModes                  TransportMode[] @default([])
+  privateVehicleCapacity      Int?
+  maxTravelMinutesPerLeg      Int?
+  requiresAccessibleTransport Boolean         @default(false)
+  notes                       String?         @db.VarChar(1000)
+  createdAt                   DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt                   DateTime        @updatedAt @db.Timestamptz(6)
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([mainMode])
+  @@map("trip_transport_preferences")
+}
+
+model TripAccommodationPreference {
+  id                      String              @id @default(uuid()) @db.Uuid
+  tripId                  String              @unique @db.Uuid
+  preferredTypes          AccommodationType[] @default([])
+  roomCount               Int?
+  maxNightlyBudget        Decimal?            @db.Decimal(14, 2)
+  currency                String              @default("VND") @db.VarChar(3)
+  requiredAmenities       String[]            @default([])
+  preferredAmenities      String[]            @default([])
+  allowsSharedRoom        Boolean             @default(false)
+  maxDistanceFromCenterKm Decimal?            @db.Decimal(8, 2)
+  notes                   String?             @db.VarChar(1000)
+  createdAt               DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(6)
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("trip_accommodation_preferences")
+}
+
+model TripPreference {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tripId                String      @unique @db.Uuid
+  pace                  TravelPace?
+  preferredStartTime    DateTime?   @db.Time(0)
+  preferredEndTime      DateTime?   @db.Time(0)
+  maxActivitiesPerDay   Int?
+  interests             String[]    @default([])
+  avoidInterests        String[]    @default([])
+  wantsLocalExperiences Boolean     @default(false)
+  notes                 String?     @db.VarChar(1000)
+  createdAt             DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime    @updatedAt @db.Timestamptz(6)
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([pace])
+  @@map("trip_preferences")
+}
+
+model TripConstraint {
+  id            String             @id @default(uuid()) @db.Uuid
+  tripId        String             @db.Uuid
+  participantId String?            @db.Uuid
+  type          TripConstraintType
+  priority      ConstraintPriority @default(PREFERENCE)
+  title         String             @db.VarChar(150)
+  details       String?            @db.VarChar(1000)
+  isActive      Boolean            @default(true)
+  sortOrder     Int                @default(0)
+  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @db.Timestamptz(6)
+
+  trip        Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  participant TripParticipant? @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([tripId, sortOrder])
+  @@index([participantId])
+  @@index([type])
+  @@index([priority])
+  @@index([isActive])
+  @@map("trip_constraints")
+}
+
+model TripSavedPlace {
+  id        String             @id @default(uuid()) @db.Uuid
+  tripId    String             @db.Uuid
+  placeId   String             @db.Uuid
+  priority  SavedPlacePriority @default(OPTIONAL)
+  sortOrder Int                @default(0)
+  notes     String?            @db.VarChar(1000)
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
+
+  trip  Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  place Place @relation(fields: [placeId], references: [id], onDelete: Restrict)
+
+  @@unique([tripId, placeId])
+  @@index([tripId])
+  @@index([tripId, priority, sortOrder])
+  @@index([placeId])
+  @@index([priority])
+  @@map("trip_saved_places")
 }
 
 model AuditLog {
