@@ -174,24 +174,47 @@ enum SavedPlacePriority {
   REQUIRED
 }
 
+enum TripPlanGenerationStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum TripPlanAttemptStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  TIMED_OUT
+  CANCELLED
+}
+
+enum TripPlanVersionStatus {
+  READY
+  ACTIVE
+  ARCHIVED
+}
+
 model User {
-  id               String          @id @db.Uuid
-  email            String?         @unique @db.VarChar(320)
-  isActive         Boolean         @default(true)
-  lastLoginAt      DateTime?       @db.Timestamptz(6)
-  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime        @updatedAt @db.Timestamptz(6)
-  deletedAt        DateTime?       @db.Timestamptz(6)
-  profile          UserProfile?
-  consent          UserConsent?
-  preference       UserPreference?
-  ownedPartner     Partner?        @relation("PartnerOwner")
-  reviewedPartners Partner[]       @relation("PartnerReviewer")
-  createdPlaces    Place[]         @relation("PlaceCreator")
-  reviewedPlaces   Place[]         @relation("PlaceReviewer")
-  ownedTrips       Trip[]          @relation("TripOwner")
-  userRoles        UserRole[]
-  auditLogs        AuditLog[]      @relation("AuditLogActor")
+  id                       String               @id @db.Uuid
+  email                    String?              @unique @db.VarChar(320)
+  isActive                 Boolean              @default(true)
+  lastLoginAt              DateTime?            @db.Timestamptz(6)
+  createdAt                DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime             @updatedAt @db.Timestamptz(6)
+  deletedAt                DateTime?            @db.Timestamptz(6)
+  profile                  UserProfile?
+  consent                  UserConsent?
+  preference               UserPreference?
+  ownedPartner             Partner?             @relation("PartnerOwner")
+  reviewedPartners         Partner[]            @relation("PartnerReviewer")
+  createdPlaces            Place[]              @relation("PlaceCreator")
+  reviewedPlaces           Place[]              @relation("PlaceReviewer")
+  ownedTrips               Trip[]               @relation("TripOwner")
+  requestedPlanGenerations TripPlanGeneration[] @relation("TripPlanGenerationRequester")
+  userRoles                UserRole[]
+  auditLogs                AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
   @@index([deletedAt])
@@ -575,6 +598,8 @@ model Trip {
   preference              TripPreference?
   constraints             TripConstraint[]
   savedPlaces             TripSavedPlace[]
+  planGenerations         TripPlanGeneration[]
+  planVersions            TripPlanVersion[]
 
   @@index([ownerUserId])
   @@index([destinationProvinceId])
@@ -774,6 +799,97 @@ model TripSavedPlace {
   @@index([placeId])
   @@index([priority])
   @@map("trip_saved_places")
+}
+
+model TripPlanGeneration {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  tripId             String                   @db.Uuid
+  requestedByUserId  String?                  @db.Uuid
+  status             TripPlanGenerationStatus @default(QUEUED)
+  inputSchemaVersion String                   @db.VarChar(50)
+  safeInputSnapshot  Json                     @db.JsonB
+  inputHash          String                   @db.VarChar(64)
+  completedAt        DateTime?                @db.Timestamptz(6)
+  createdAt          DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime                 @updatedAt @db.Timestamptz(6)
+
+  trip            Trip              @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  requestedBy     User?             @relation("TripPlanGenerationRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  attempts        TripPlanAttempt[]
+  producedVersion TripPlanVersion?
+
+  @@index([tripId])
+  @@index([tripId, createdAt])
+  @@index([requestedByUserId])
+  @@index([status])
+  @@map("trip_plan_generations")
+}
+
+model TripPlanAttempt {
+  id                String                @id @default(uuid()) @db.Uuid
+  generationId      String                @db.Uuid
+  attemptNumber     Int
+  provider          String                @db.VarChar(100)
+  model             String                @db.VarChar(150)
+  status            TripPlanAttemptStatus @default(STARTED)
+  isFallback        Boolean               @default(false)
+  providerRequestId String?               @db.VarChar(255)
+  inputTokens       Int?
+  outputTokens      Int?
+  estimatedCost     Decimal?              @db.Decimal(14, 6)
+  costCurrency      String                @default("USD") @db.VarChar(3)
+  latencyMs         Int?
+  finishReason      String?               @db.VarChar(100)
+  outputHash        String?               @db.VarChar(64)
+  validationData    Json?                 @db.JsonB
+  errorCode         String?               @db.VarChar(100)
+  errorMessage      String?               @db.VarChar(1000)
+  startedAt         DateTime              @default(now()) @db.Timestamptz(6)
+  completedAt       DateTime?             @db.Timestamptz(6)
+  createdAt         DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
+
+  generation      TripPlanGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  producedVersion TripPlanVersion?
+
+  @@unique([generationId, attemptNumber])
+  @@index([generationId])
+  @@index([status])
+  @@index([provider, model])
+  @@index([providerRequestId])
+  @@index([createdAt])
+  @@map("trip_plan_attempts")
+}
+
+model TripPlanVersion {
+  id                 String                @id @default(uuid()) @db.Uuid
+  tripId             String                @db.Uuid
+  generationId       String?               @unique @db.Uuid
+  sourceAttemptId    String?               @unique @db.Uuid
+  versionNumber      Int
+  status             TripPlanVersionStatus @default(READY)
+  schemaVersion      String                @db.VarChar(50)
+  planData           Json                  @db.JsonB
+  summaryData        Json?                 @db.JsonB
+  validationData     Json                  @db.JsonB
+  totalDays          Int
+  totalActivities    Int
+  estimatedTotalCost Decimal?              @db.Decimal(14, 2)
+  currency           String                @default("VND") @db.VarChar(3)
+  activatedAt        DateTime?             @db.Timestamptz(6)
+  createdAt          DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime              @updatedAt @db.Timestamptz(6)
+
+  trip          Trip                @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  generation    TripPlanGeneration? @relation(fields: [generationId], references: [id], onDelete: SetNull)
+  sourceAttempt TripPlanAttempt?    @relation(fields: [sourceAttemptId], references: [id], onDelete: SetNull)
+
+  @@unique([tripId, versionNumber])
+  @@index([tripId])
+  @@index([tripId, status])
+  @@index([status])
+  @@index([createdAt])
+  @@map("trip_plan_versions")
 }
 
 model AuditLog {
