@@ -1044,3 +1044,27 @@ model TripExpense {
   @@index([occurredAt])
   @@map("trip_expenses")
 }
+
+enum RoadsideVehicleType {
+  MOTORBIKE
+  CAR
+  BOTH
+}
+
+model RoadsideAssistanceContact {
+  id            String              @id @default(uuid()) @db.Uuid
+  name          String              @db.VarChar(200)
+  phone         String              @db.VarChar(30)
+  vehicleType   RoadsideVehicleType
+  areaName      String              @db.VarChar(200)
+  googleMapsUrl String              @db.VarChar(2048)
+  displayOrder  Int                 @default(0)
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @db.Timestamptz(6)
+
+  @@index([isActive, displayOrder])
+  @@index([areaName])
+  @@index([vehicleType])
+  @@map("roadside_assistance_contacts")
+}
