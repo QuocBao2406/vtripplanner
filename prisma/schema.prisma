@@ -600,6 +600,9 @@ model Trip {
   savedPlaces             TripSavedPlace[]
   planGenerations         TripPlanGeneration[]
   planVersions            TripPlanVersion[]
+  checklists              TripChecklist[]
+  managedBudget           TripBudget?
+  expenseEntries          TripExpense[]
 
   @@index([ownerUserId])
   @@index([destinationProvinceId])
@@ -621,9 +624,11 @@ model TripParticipant {
   createdAt   DateTime            @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime            @updatedAt @db.Timestamptz(6)
 
-  trip        Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  prices      TripParticipantPrice[]
-  constraints TripConstraint[]
+  trip                   Trip                   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  prices                 TripParticipantPrice[]
+  constraints            TripConstraint[]
+  assignedChecklistItems TripChecklistItem[]
+  personalExpenseEntries TripExpense[]
 
   @@index([tripId])
   @@index([tripId, sortOrder])
@@ -641,8 +646,9 @@ model TripDay {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  trip       Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  activities TripActivity[]
+  trip           Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  activities     TripActivity[]
+  expenseEntries TripExpense[]
 
   @@unique([tripId, dayNumber])
   @@unique([tripId, date])
@@ -665,8 +671,9 @@ model TripActivity {
   createdAt   DateTime         @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
 
-  tripDay TripDay @relation(fields: [tripDayId], references: [id], onDelete: Cascade)
-  place   Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  tripDay        TripDay       @relation(fields: [tripDayId], references: [id], onDelete: Cascade)
+  place          Place?        @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  expenseEntries TripExpense[]
 
   @@index([tripDayId])
   @@index([tripDayId, sortOrder])
@@ -908,4 +915,132 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+enum TripChecklistPhase {
+  BEFORE_TRIP
+  DURING_TRIP
+  AFTER_TRIP
+}
+
+enum TripChecklistSource {
+  DEFAULT
+  AI
+  USER
+}
+
+enum TripChecklistItemStatus {
+  TODO
+  COMPLETED
+  SKIPPED
+}
+
+enum TripExpenseCategory {
+  TRANSPORTATION
+  ACCOMMODATION
+  FOOD
+  TICKET
+  ACTIVITY
+  SHOPPING
+  HEALTH
+  EMERGENCY
+  OTHER
+}
+
+enum TripExpenseScope {
+  SHARED
+  PERSONAL
+}
+
+enum TripExpenseSource {
+  PLAN
+  USER
+}
+
+model TripChecklist {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId    String              @db.Uuid
+  title     String              @db.VarChar(200)
+  phase     TripChecklistPhase
+  source    TripChecklistSource @default(USER)
+  sortOrder Int                 @default(0)
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime            @updatedAt @db.Timestamptz(6)
+
+  trip  Trip                @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  items TripChecklistItem[]
+
+  @@index([tripId])
+  @@index([tripId, phase, sortOrder])
+  @@map("trip_checklists")
+}
+
+model TripChecklistItem {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  checklistId           String                  @db.Uuid
+  assignedParticipantId String?                 @db.Uuid
+  title                 String                  @db.VarChar(300)
+  note                  String?                 @db.VarChar(1000)
+  status                TripChecklistItemStatus @default(TODO)
+  dueAt                 DateTime?               @db.Timestamptz(6)
+  sortOrder             Int                     @default(0)
+  completedAt           DateTime?               @db.Timestamptz(6)
+  createdAt             DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime                @updatedAt @db.Timestamptz(6)
+
+  checklist           TripChecklist    @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  assignedParticipant TripParticipant? @relation(fields: [assignedParticipantId], references: [id], onDelete: SetNull)
+
+  @@index([checklistId])
+  @@index([assignedParticipantId])
+  @@index([checklistId, status])
+  @@index([checklistId, sortOrder])
+  @@map("trip_checklist_items")
+}
+
+model TripBudget {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId            String   @unique @db.Uuid
+  plannedAmount     Decimal  @default(0) @db.Decimal(14, 2)
+  contingencyAmount Decimal  @default(0) @db.Decimal(14, 2)
+  currency          String   @default("VND") @db.VarChar(3)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@map("trip_budgets")
+}
+
+model TripExpense {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tripId          String              @db.Uuid
+  tripDayId       String?             @db.Uuid
+  tripActivityId  String?             @db.Uuid
+  participantId   String?             @db.Uuid
+  title           String              @db.VarChar(200)
+  category        TripExpenseCategory
+  scope           TripExpenseScope    @default(SHARED)
+  source          TripExpenseSource   @default(USER)
+  estimatedAmount Decimal?            @db.Decimal(14, 2)
+  actualAmount    Decimal?            @db.Decimal(14, 2)
+  occurredAt      DateTime?           @db.Timestamptz(6)
+  note            String?             @db.VarChar(1000)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(6)
+
+  trip         Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripDay      TripDay?         @relation(fields: [tripDayId], references: [id], onDelete: SetNull)
+  tripActivity TripActivity?    @relation(fields: [tripActivityId], references: [id], onDelete: SetNull)
+  participant  TripParticipant? @relation(fields: [participantId], references: [id], onDelete: Restrict)
+
+  @@index([tripId])
+  @@index([tripDayId])
+  @@index([tripActivityId])
+  @@index([participantId])
+  @@index([tripId, category])
+  @@index([tripId, scope])
+  @@index([tripId, source])
+  @@index([occurredAt])
+  @@map("trip_expenses")
 }
