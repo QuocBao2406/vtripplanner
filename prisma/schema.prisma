@@ -214,6 +214,7 @@ model User {
   ownedTrips               Trip[]               @relation("TripOwner")
   requestedPlanGenerations TripPlanGeneration[] @relation("TripPlanGenerationRequester")
   userRoles                UserRole[]
+  placeReviews             PlaceReview[]        @relation("PlaceReviewAuthor")
   auditLogs                AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
@@ -488,6 +489,7 @@ model Place {
   prices         PlacePrice[]
   tripActivities TripActivity[]
   savedInTrips   TripSavedPlace[]
+  reviews        PlaceReview[]
 
   @@index([partnerId])
   @@index([partnerBranchId])
@@ -1051,6 +1053,11 @@ enum RoadsideVehicleType {
   BOTH
 }
 
+enum PlaceReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
 model RoadsideAssistanceContact {
   id            String              @id @default(uuid()) @db.Uuid
   name          String              @db.VarChar(200)
@@ -1067,4 +1074,25 @@ model RoadsideAssistanceContact {
   @@index([areaName])
   @@index([vehicleType])
   @@map("roadside_assistance_contacts")
+}
+
+model PlaceReview {
+  id             String            @id @default(uuid()) @db.Uuid
+  userId         String            @db.Uuid
+  placeId        String            @db.Uuid
+  rating         Int
+  content        String?           @db.VarChar(2000)
+  status         PlaceReviewStatus @default(PUBLISHED)
+  moderationNote String?           @db.VarChar(500)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(6)
+
+  author User  @relation("PlaceReviewAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  place  Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, placeId])
+  @@index([placeId, status, createdAt])
+  @@index([userId, createdAt])
+  @@index([rating])
+  @@map("place_reviews")
 }
