@@ -197,25 +197,27 @@ enum TripPlanVersionStatus {
 }
 
 model User {
-  id                       String               @id @db.Uuid
-  email                    String?              @unique @db.VarChar(320)
-  isActive                 Boolean              @default(true)
-  lastLoginAt              DateTime?            @db.Timestamptz(6)
-  createdAt                DateTime             @default(now()) @db.Timestamptz(6)
-  updatedAt                DateTime             @updatedAt @db.Timestamptz(6)
-  deletedAt                DateTime?            @db.Timestamptz(6)
-  profile                  UserProfile?
-  consent                  UserConsent?
-  preference               UserPreference?
-  ownedPartner             Partner?             @relation("PartnerOwner")
-  reviewedPartners         Partner[]            @relation("PartnerReviewer")
-  createdPlaces            Place[]              @relation("PlaceCreator")
-  reviewedPlaces           Place[]              @relation("PlaceReviewer")
-  ownedTrips               Trip[]               @relation("TripOwner")
-  requestedPlanGenerations TripPlanGeneration[] @relation("TripPlanGenerationRequester")
-  userRoles                UserRole[]
-  placeReviews             PlaceReview[]        @relation("PlaceReviewAuthor")
-  auditLogs                AuditLog[]           @relation("AuditLogActor")
+  id                          String               @id @db.Uuid
+  email                       String?              @unique @db.VarChar(320)
+  isActive                    Boolean              @default(true)
+  lastLoginAt                 DateTime?            @db.Timestamptz(6)
+  createdAt                   DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt                   DateTime             @updatedAt @db.Timestamptz(6)
+  deletedAt                   DateTime?            @db.Timestamptz(6)
+  profile                     UserProfile?
+  consent                     UserConsent?
+  preference                  UserPreference?
+  ownedPartner                Partner?             @relation("PartnerOwner")
+  reviewedPartners            Partner[]            @relation("PartnerReviewer")
+  createdPlaces               Place[]              @relation("PlaceCreator")
+  reviewedPlaces              Place[]              @relation("PlaceReviewer")
+  ownedTrips                  Trip[]               @relation("TripOwner")
+  requestedPlanGenerations    TripPlanGeneration[] @relation("TripPlanGenerationRequester")
+  userRoles                   UserRole[]
+  placeReviews                PlaceReview[]        @relation("PlaceReviewAuthor")
+  submittedPlaceReviewReports PlaceReviewReport[]  @relation("PlaceReviewReportReporter")
+  moderatedPlaceReviewReports PlaceReviewReport[]  @relation("PlaceReviewReportModerator")
+  auditLogs                   AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
   @@index([deletedAt])
@@ -1058,6 +1060,24 @@ enum PlaceReviewStatus {
   HIDDEN
 }
 
+enum PlaceReviewReportReason {
+  SPAM
+  ABUSIVE_OR_HARASSING
+  HATE_OR_DISCRIMINATION
+  INAPPROPRIATE_CONTENT
+  MISLEADING_INFORMATION
+  PRIVACY_VIOLATION
+  CONFLICT_OF_INTEREST
+  OTHER
+}
+
+enum PlaceReviewReportStatus {
+  PENDING
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
 model RoadsideAssistanceContact {
   id            String              @id @default(uuid()) @db.Uuid
   name          String              @db.VarChar(200)
@@ -1087,12 +1107,39 @@ model PlaceReview {
   createdAt      DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt      DateTime          @updatedAt @db.Timestamptz(6)
 
-  author User  @relation("PlaceReviewAuthor", fields: [userId], references: [id], onDelete: Cascade)
-  place  Place @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  author  User                @relation("PlaceReviewAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  place   Place               @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  reports PlaceReviewReport[]
 
   @@unique([userId, placeId])
   @@index([placeId, status, createdAt])
   @@index([userId, createdAt])
   @@index([rating])
   @@map("place_reviews")
+}
+
+model PlaceReviewReport {
+  id               String                  @id @default(uuid()) @db.Uuid
+  reporterUserId   String?                 @db.Uuid
+  placeReviewId    String                  @db.Uuid
+  reason           PlaceReviewReportReason
+  details          String?                 @db.VarChar(1000)
+  status           PlaceReviewReportStatus @default(PENDING)
+  reviewedByUserId String?                 @db.Uuid
+  resolutionNote   String?                 @db.VarChar(1000)
+  reviewedAt       DateTime?               @db.Timestamptz(6)
+  resolvedAt       DateTime?               @db.Timestamptz(6)
+  createdAt        DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime                @updatedAt @db.Timestamptz(6)
+
+  reporter    User?       @relation("PlaceReviewReportReporter", fields: [reporterUserId], references: [id], onDelete: SetNull)
+  placeReview PlaceReview @relation(fields: [placeReviewId], references: [id], onDelete: Restrict)
+  reviewedBy  User?       @relation("PlaceReviewReportModerator", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([reporterUserId, placeReviewId])
+  @@index([placeReviewId, status, createdAt])
+  @@index([reporterUserId, createdAt])
+  @@index([status, createdAt])
+  @@index([reviewedByUserId, status])
+  @@map("place_review_reports")
 }
