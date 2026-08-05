@@ -12,7 +12,7 @@ const signInPasswordSchema = z
   .min(1, "Vui lòng nhập mật khẩu.")
   .max(72, "Mật khẩu quá dài.");
 
-const signUpPasswordSchema = z
+const securePasswordSchema = z
   .string()
   .min(8, "Mật khẩu phải có ít nhất 8 ký tự.")
   .max(72, "Mật khẩu quá dài.")
@@ -28,7 +28,21 @@ export const signInSchema = z.object({
 export const signUpSchema = z
   .object({
     email: emailSchema,
-    password: signUpPasswordSchema,
+    password: securePasswordSchema,
+    confirmPassword: z.string().min(1, "Vui lòng nhập lại mật khẩu."),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: "Mật khẩu nhập lại không khớp.",
+    path: ["confirmPassword"],
+  });
+
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordSchema = z
+  .object({
+    password: securePasswordSchema,
     confirmPassword: z.string().min(1, "Vui lòng nhập lại mật khẩu."),
   })
   .refine((values) => values.password === values.confirmPassword, {
