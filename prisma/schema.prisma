@@ -219,6 +219,7 @@ model User {
   moderatedPlaceReviewReports PlaceReviewReport[]  @relation("PlaceReviewReportModerator")
   receivedNotifications       Notification[]       @relation("NotificationRecipient")
   triggeredNotifications      Notification[]       @relation("NotificationActor")
+  userInteractions            UserInteraction[]
   auditLogs                   AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
@@ -481,19 +482,20 @@ model Place {
   updatedAt          DateTime                @updatedAt @db.Timestamptz(6)
   deletedAt          DateTime?               @db.Timestamptz(6)
 
-  partner        Partner?           @relation(fields: [partnerId], references: [id], onDelete: SetNull)
-  partnerBranch  PartnerBranch?     @relation(fields: [partnerBranchId], references: [id], onDelete: SetNull)
-  category       PlaceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  province       Province           @relation(fields: [provinceId], references: [id], onDelete: Restrict)
-  district       District?          @relation(fields: [districtId], references: [id], onDelete: SetNull)
-  createdBy      User?              @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  reviewedBy     User?              @relation("PlaceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  images         PlaceImage[]
-  openingHours   PlaceOpeningHour[]
-  prices         PlacePrice[]
-  tripActivities TripActivity[]
-  savedInTrips   TripSavedPlace[]
-  reviews        PlaceReview[]
+  partner          Partner?           @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  partnerBranch    PartnerBranch?     @relation(fields: [partnerBranchId], references: [id], onDelete: SetNull)
+  category         PlaceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  province         Province           @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  district         District?          @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  createdBy        User?              @relation("PlaceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy       User?              @relation("PlaceReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  images           PlaceImage[]
+  openingHours     PlaceOpeningHour[]
+  prices           PlacePrice[]
+  tripActivities   TripActivity[]
+  savedInTrips     TripSavedPlace[]
+  reviews          PlaceReview[]
+  userInteractions UserInteraction[]
 
   @@index([partnerId])
   @@index([partnerBranchId])
@@ -1099,6 +1101,12 @@ enum NotificationPriority {
   URGENT
 }
 
+enum UserInteractionType {
+  VIEW
+  CLICK
+  OPEN_MAP
+}
+
 model RoadsideAssistanceContact {
   id            String              @id @default(uuid()) @db.Uuid
   name          String              @db.VarChar(200)
@@ -1191,4 +1199,19 @@ model Notification {
   @@index([expiresAt])
   @@index([actorUserId, createdAt])
   @@map("notifications")
+}
+
+model UserInteraction {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @db.Uuid
+  placeId   String              @db.Uuid
+  type      UserInteractionType
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  place Place @relation(fields: [placeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([placeId, type, createdAt])
+  @@map("user_interactions")
 }
