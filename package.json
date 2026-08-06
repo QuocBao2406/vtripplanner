@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed:places": "node prisma/seed/places.mjs",
+    "seed:place-images": "node prisma/seed/place-images.mjs",
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate"
   },
