@@ -10,13 +10,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 if (!connectionString) {
   throw new Error(
-    "DIRECT_URL hoáº·c DATABASE_URL chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh trong .env.local.",
+    "DIRECT_URL hoặc DATABASE_URL chưa được cấu hình trong .env.local.",
   );
 }
 
 if (!supabaseUrl) {
   throw new Error(
-    "NEXT_PUBLIC_SUPABASE_URL chÆ°a Ä‘Æ°á»£c cáº¥u hÃ¬nh trong .env.local.",
+    "NEXT_PUBLIC_SUPABASE_URL chưa được cấu hình trong .env.local.",
   );
 }
 
@@ -100,14 +100,14 @@ async function verifyStorageObjects() {
     try {
       if (!response.ok) {
         throw new Error(
-          `KhÃ´ng thá»ƒ Ä‘á»c ${storagePath}. HTTP ${response.status}.`,
+          `Không thể đọc ${storagePath}. HTTP ${response.status}.`,
         );
       }
 
       const contentType = response.headers.get("content-type") ?? "";
       if (!contentType.toLowerCase().startsWith("image/png")) {
         throw new Error(
-          `${storagePath} khÃ´ng tráº£ vá» MIME image/png. Nháº­n Ä‘Æ°á»£c: ${contentType || "khÃ´ng xÃ¡c Ä‘á»‹nh"}.`,
+          `${storagePath} không trả về MIME image/png. Nhận được: ${contentType || "không xác định"}.`,
         );
       }
     } finally {
@@ -140,7 +140,7 @@ async function loadSeedPlaces(client) {
 
   if (result.rows.length !== 24) {
     throw new Error(
-      `Cáº§n Ä‘Ãºng 24 Ä‘á»‹a Ä‘iá»ƒm máº«u trÆ°á»›c khi liÃªn káº¿t áº£nh. Hiá»‡n tÃ¬m tháº¥y ${result.rows.length}.`,
+      `Cần đúng 24 địa điểm mẫu trước khi liên kết ảnh. Hiện tìm thấy ${result.rows.length}.`,
     );
   }
 
@@ -149,7 +149,7 @@ async function loadSeedPlaces(client) {
 
   if (missingSlugs.length > 0) {
     throw new Error(
-      `Thiáº¿u Ä‘á»‹a Ä‘iá»ƒm máº«u: ${missingSlugs.join(", ")}.`,
+      `Thiếu địa điểm mẫu: ${missingSlugs.join(", ")}.`,
     );
   }
 
@@ -170,7 +170,7 @@ async function upsertPlaceImage(client, image) {
 
   if (existing.rows.length > 1) {
     throw new Error(
-      `PhÃ¡t hiá»‡n dá»¯ liá»‡u áº£nh trÃ¹ng cho placeId=${image.placeId}, storagePath=${image.storagePath}. KhÃ´ng tá»± Ä‘á»™ng xÃ³a dá»¯ liá»‡u.`,
+      `Phát hiện dữ liệu ảnh trùng cho placeId=${image.placeId}, storagePath=${image.storagePath}. Không tự động xóa dữ liệu.`,
     );
   }
 
@@ -242,7 +242,7 @@ async function verifyImageLinks(client) {
 
   if (duplicateResult.rows.length > 0) {
     throw new Error(
-      "PhÃ¡t hiá»‡n liÃªn káº¿t áº£nh máº«u bá»‹ trÃ¹ng sau khi seed.",
+      "Phát hiện liên kết ảnh mẫu bị trùng sau khi seed.",
     );
   }
 
@@ -269,7 +269,7 @@ async function verifyImageLinks(client) {
 
   if (perPlaceResult.rows.length !== 24 || invalidPlaces.length > 0) {
     throw new Error(
-      `LiÃªn káº¿t áº£nh theo Ä‘á»‹a Ä‘iá»ƒm khÃ´ng Ä‘Ãºng: ${JSON.stringify(invalidPlaces)}.`,
+      `Liên kết ảnh theo địa điểm không đúng: ${JSON.stringify(invalidPlaces)}.`,
     );
   }
 
@@ -311,13 +311,13 @@ async function main() {
 
       if (!categoryStoragePath) {
         throw new Error(
-          `KhÃ´ng cÃ³ áº£nh cho danh má»¥c ${place.categorySlug}.`,
+          `Không có ảnh cho danh mục ${place.categorySlug}.`,
         );
       }
 
       if (!cityStoragePath) {
         throw new Error(
-          `KhÃ´ng cÃ³ áº£nh cho tá»‰nh/thÃ nh ${place.provinceCode}.`,
+          `Không có ảnh cho tỉnh/thành ${place.provinceCode}.`,
         );
       }
 
@@ -325,16 +325,16 @@ async function main() {
         {
           placeId: place.id,
           storagePath: categoryStoragePath,
-          altText: `${place.name} - áº£nh minh há»a danh má»¥c ${place.categoryName}`,
-          caption: `áº¢nh minh há»a theo danh má»¥c ${place.categoryName}; dá»¯ liá»‡u máº«u phá»¥c vá»¥ Ä‘á»“ Ã¡n VTripPlanner.`,
+          altText: `${place.name} - ảnh minh họa danh mục ${place.categoryName}`,
+          caption: `Ảnh minh họa theo danh mục ${place.categoryName}; dữ liệu mẫu phục vụ đồ án VTripPlanner.`,
           sortOrder: 0,
           isCover: true,
         },
         {
           placeId: place.id,
           storagePath: cityStoragePath,
-          altText: `${place.name} - áº£nh minh há»a Ä‘iá»ƒm Ä‘áº¿n ${place.provinceName}`,
-          caption: `áº¢nh minh há»a Ä‘iá»ƒm Ä‘áº¿n ${place.provinceName}; dá»¯ liá»‡u máº«u phá»¥c vá»¥ Ä‘á»“ Ã¡n VTripPlanner.`,
+          altText: `${place.name} - ảnh minh họa điểm đến ${place.provinceName}`,
+          caption: `Ảnh minh họa điểm đến ${place.provinceName}; dữ liệu mẫu phục vụ đồ án VTripPlanner.`,
           sortOrder: 1,
           isCover: false,
         },
@@ -370,7 +370,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error("Seed liÃªn káº¿t áº£nh Ä‘á»‹a Ä‘iá»ƒm tháº¥t báº¡i.");
+    console.error("Seed liên kết ảnh địa điểm thất bại.");
     console.error(error);
     process.exitCode = 1;
   })

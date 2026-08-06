@@ -10,9 +10,9 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "KhÃ¡m phÃ¡ Ä‘á»‹a Ä‘iá»ƒm | VTripPlanner",
+  title: "Khám phá địa điểm | VTripPlanner",
   description:
-    "TÃ¬m kiáº¿m vÃ  lá»c cÃ¡c Ä‘á»‹a Ä‘iá»ƒm du lá»‹ch máº«u táº¡i ThÃ nh phá»‘ Há»“ ChÃ­ Minh vÃ  ÄÃ  Láº¡t.",
+    "Tìm kiếm và lọc các địa điểm du lịch mẫu tại Thành phố Hồ Chí Minh và Đà Lạt.",
 };
 
 type PlacesPageProps = {
@@ -36,16 +36,16 @@ type NormalizedFilters = {
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 const PRICE_UNIT_LABELS: Record<string, string> = {
-  PERSON: "ngÆ°á»i",
-  ENTRY: "lÆ°á»£t",
-  HOUR: "giá»",
-  DAY: "ngÃ y",
-  NIGHT: "Ä‘Ãªm",
-  ROOM: "phÃ²ng",
+  PERSON: "người",
+  ENTRY: "lượt",
+  HOUR: "giờ",
+  DAY: "ngày",
+  NIGHT: "đêm",
+  ROOM: "phòng",
   VEHICLE: "xe",
-  TABLE: "bÃ n",
-  PACKAGE: "gÃ³i",
-  OTHER: "Ä‘Æ¡n vá»‹",
+  TABLE: "bàn",
+  PACKAGE: "gói",
+  OTHER: "đơn vị",
 };
 
 function getFirstValue(
@@ -123,16 +123,16 @@ function createCatalogHref(
 
 function formatPrice(place: PublicPlaceCard): string {
   if (!place.minimumPrice) {
-    return "ChÆ°a cÃ³ giÃ¡ tham kháº£o";
+    return "Chưa có giá tham khảo";
   }
 
   const unitLabel =
-    PRICE_UNIT_LABELS[place.minimumPrice.unit] ?? "Ä‘Æ¡n vá»‹";
+    PRICE_UNIT_LABELS[place.minimumPrice.unit] ?? "đơn vị";
   const formattedAmount = new Intl.NumberFormat("vi-VN", {
     maximumFractionDigits: 0,
   }).format(place.minimumPrice.amount);
 
-  return `Tá»« ${formattedAmount} ${place.minimumPrice.currency}/${unitLabel}`;
+  return `Từ ${formattedAmount} ${place.minimumPrice.currency}/${unitLabel}`;
 }
 
 function formatAddress(place: PublicPlaceCard): string {
@@ -156,7 +156,7 @@ function PlaceCard({ place }: { place: PublicPlaceCard }) {
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-bold text-emerald-800">
-            áº¢nh Ä‘á»‹a Ä‘iá»ƒm Ä‘ang Ä‘Æ°á»£c cáº­p nháº­t
+            Ảnh địa điểm đang được cập nhật
           </div>
         )}
 
@@ -178,24 +178,24 @@ function PlaceCard({ place }: { place: PublicPlaceCard }) {
 
           <div className="shrink-0 rounded-2xl bg-amber-50 px-3 py-2 text-right">
             <p className="text-sm font-black text-amber-700">
-              {place.averageRating === null ? "Má»›i" : `${place.averageRating}/5`}
+              {place.averageRating === null ? "Mới" : `${place.averageRating}/5`}
             </p>
             <p className="mt-0.5 text-[11px] font-semibold text-amber-800/70">
               {place.reviewCount === 0
-                ? "ChÆ°a cÃ³ Ä‘Ã¡nh giÃ¡"
-                : `${place.reviewCount} Ä‘Ã¡nh giÃ¡`}
+                ? "Chưa có đánh giá"
+                : `${place.reviewCount} đánh giá`}
             </p>
           </div>
         </div>
 
         <p className="mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-slate-600">
           {place.shortDescription ??
-            "Äá»‹a Ä‘iá»ƒm máº«u phá»¥c vá»¥ chá»©c nÄƒng láº­p lá»‹ch trÃ¬nh du lá»‹ch."}
+            "Địa điểm mẫu phục vụ chức năng lập lịch trình du lịch."}
         </p>
 
         <dl className="mt-5 space-y-3 border-t border-slate-100 pt-4 text-sm">
           <div>
-            <dt className="font-bold text-slate-900">Äá»‹a chá»‰</dt>
+            <dt className="font-bold text-slate-900">Địa chỉ</dt>
             <dd className="mt-1 leading-5 text-slate-600">
               {formatAddress(place)}
             </dd>
@@ -203,17 +203,17 @@ function PlaceCard({ place }: { place: PublicPlaceCard }) {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <dt className="font-bold text-slate-900">GiÃ¡ tham kháº£o</dt>
+              <dt className="font-bold text-slate-900">Giá tham khảo</dt>
               <dd className="mt-1 text-emerald-700">{formatPrice(place)}</dd>
             </div>
 
             <div>
-              <dt className="font-bold text-slate-900">Thá»i Ä‘iá»ƒm phÃ¹ há»£p</dt>
+              <dt className="font-bold text-slate-900">Thời điểm phù hợp</dt>
               <dd className="mt-1 text-slate-600">
                 {place.seasonNote ??
                   (place.bestVisitMonths.length > 0
-                    ? `ThÃ¡ng ${place.bestVisitMonths.join(", ")}`
-                    : "Quanh nÄƒm")}
+                    ? `Tháng ${place.bestVisitMonths.join(", ")}`
+                    : "Quanh năm")}
               </dd>
             </div>
           </div>
@@ -260,13 +260,13 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
               href="/dang-nhap"
               className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700"
             >
-              ÄÄƒng nháº­p
+              Đăng nhập
             </Link>
             <Link
               href="/tai-khoan"
               className="rounded-xl bg-emerald-700 px-4 py-2.5 text-white transition hover:bg-emerald-800"
             >
-              TÃ i khoáº£n
+              Tài khoản
             </Link>
           </nav>
         </div>
@@ -275,14 +275,14 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
       <section className="border-b border-emerald-900/10 bg-gradient-to-br from-emerald-800 via-teal-800 to-cyan-800 text-white">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8">
           <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-emerald-100">
-            Dá»¯ liá»‡u máº«u phá»¥c vá»¥ Ä‘á»“ Ã¡n
+            Dữ liệu mẫu phục vụ đồ án
           </p>
           <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
-            KhÃ¡m phÃ¡ Ä‘á»‹a Ä‘iá»ƒm cho hÃ nh trÃ¬nh tiáº¿p theo
+            Khám phá địa điểm cho hành trình tiếp theo
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-emerald-50 sm:text-lg">
-            TÃ¬m kiáº¿m theo tÃªn, lá»c theo tá»‰nh thÃ nh, danh má»¥c vÃ  thÃ¡ng phÃ¹
-            há»£p trÆ°á»›c khi Ä‘Æ°a Ä‘á»‹a Ä‘iá»ƒm vÃ o lá»‹ch trÃ¬nh.
+            Tìm kiếm theo tên, lọc theo tỉnh thành, danh mục và tháng phù
+            hợp trước khi đưa địa điểm vào lịch trình.
           </p>
         </div>
       </section>
@@ -296,27 +296,27 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
           >
             <label className="block">
               <span className="text-sm font-bold text-slate-800">
-                TÃ¬m Ä‘á»‹a Ä‘iá»ƒm
+                Tìm địa điểm
               </span>
               <input
                 type="search"
                 name="q"
                 defaultValue={filters.query}
-                placeholder="VÃ­ dá»¥: báº£o tÃ ng, há»“, chá»£..."
+                placeholder="Ví dụ: bảo tàng, hồ, chợ..."
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               />
             </label>
 
             <label className="block">
               <span className="text-sm font-bold text-slate-800">
-                Tá»‰nh hoáº·c thÃ nh phá»‘
+                Tỉnh hoặc thành phố
               </span>
               <select
                 name="province"
                 defaultValue={filters.province ?? ""}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
-                <option value="">Táº¥t cáº£ khu vá»±c</option>
+                <option value="">Tất cả khu vực</option>
                 {options.provinces.map((province) => (
                   <option key={province.slug} value={province.slug}>
                     {province.name}
@@ -327,14 +327,14 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
 
             <label className="block">
               <span className="text-sm font-bold text-slate-800">
-                Danh má»¥c
+                Danh mục
               </span>
               <select
                 name="category"
                 defaultValue={filters.category ?? ""}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
-                <option value="">Táº¥t cáº£ danh má»¥c</option>
+                <option value="">Tất cả danh mục</option>
                 {options.categories.map((category) => (
                   <option key={category.slug} value={category.slug}>
                     {category.name}
@@ -345,17 +345,17 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
 
             <label className="block">
               <span className="text-sm font-bold text-slate-800">
-                ThÃ¡ng Ä‘i
+                Tháng đi
               </span>
               <select
                 name="month"
                 defaultValue={filters.month?.toString() ?? ""}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
               >
-                <option value="">Má»i thá»i Ä‘iá»ƒm</option>
+                <option value="">Mọi thời điểm</option>
                 {MONTH_OPTIONS.map((month) => (
                   <option key={month} value={month}>
-                    ThÃ¡ng {month}
+                    Tháng {month}
                   </option>
                 ))}
               </select>
@@ -365,7 +365,7 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
               type="submit"
               className="rounded-2xl bg-emerald-700 px-5 py-3 text-sm font-extrabold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200"
             >
-              TÃ¬m kiáº¿m
+              Tìm kiếm
             </button>
           </form>
 
@@ -375,7 +375,7 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
                 href="/dia-diem"
                 className="text-sm font-bold text-slate-600 underline decoration-slate-300 underline-offset-4 transition hover:text-emerald-700"
               >
-                XÃ³a bá»™ lá»c
+                Xóa bộ lọc
               </Link>
             </div>
           ) : null}
@@ -385,17 +385,17 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">
-                Danh sÃ¡ch Ä‘á»‹a Ä‘iá»ƒm
+                Danh sách địa điểm
               </p>
               <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-                {catalog.total} káº¿t quáº£ phÃ¹ há»£p
+                {catalog.total} kết quả phù hợp
               </h2>
             </div>
 
             <p className="text-sm text-slate-500">
               {catalog.total === 0
-                ? "KhÃ´ng cÃ³ káº¿t quáº£ Ä‘á»ƒ hiá»ƒn thá»‹"
-                : `Äang hiá»ƒn thá»‹ ${firstResult}-${lastResult} trÃªn ${catalog.total}`}
+                ? "Không có kết quả để hiển thị"
+                : `Đang hiển thị ${firstResult}-${lastResult} trên ${catalog.total}`}
             </p>
           </div>
 
@@ -408,23 +408,23 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
           ) : (
             <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
               <p className="text-xl font-black text-slate-900">
-                ChÆ°a tÃ¬m tháº¥y Ä‘á»‹a Ä‘iá»ƒm phÃ¹ há»£p
+                Chưa tìm thấy địa điểm phù hợp
               </p>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600">
-                HÃ£y thá»­ rÃºt gá»n tá»« khÃ³a hoáº·c bá» bá»›t má»™t Ä‘iá»u kiá»‡n lá»c.
+                Hãy thử rút gọn từ khóa hoặc bỏ bớt một điều kiện lọc.
               </p>
               <Link
                 href="/dia-diem"
                 className="mt-6 inline-flex rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800"
               >
-                Xem toÃ n bá»™ Ä‘á»‹a Ä‘iá»ƒm
+                Xem toàn bộ địa điểm
               </Link>
             </div>
           )}
 
           {catalog.totalPages > 1 ? (
             <nav
-              aria-label="PhÃ¢n trang Ä‘á»‹a Ä‘iá»ƒm"
+              aria-label="Phân trang địa điểm"
               className="mt-8 flex items-center justify-center gap-3"
             >
               {catalog.currentPage > 1 ? (
@@ -432,11 +432,11 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
                   href={createCatalogHref(filters, catalog.currentPage - 1)}
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700"
                 >
-                  Trang trÆ°á»›c
+                  Trang trước
                 </Link>
               ) : (
                 <span className="cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-400">
-                  Trang trÆ°á»›c
+                  Trang trước
                 </span>
               )}
 
