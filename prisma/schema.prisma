@@ -473,6 +473,8 @@ model Place {
   phone              String?                 @db.VarChar(30)
   email              String?                 @db.VarChar(320)
   websiteUrl         String?                 @db.VarChar(2048)
+  bestVisitMonths    Int[]                   @default([])
+  seasonNote         String?                 @db.VarChar(255)
   verificationStatus PlaceVerificationStatus @default(DRAFT)
   rejectionReason    String?                 @db.VarChar(1000)
   submittedAt        DateTime?               @db.Timestamptz(6)
@@ -581,7 +583,7 @@ model Trip {
   ownerUserId           String     @db.Uuid
   destinationProvinceId String?    @db.Uuid
   destinationDistrictId String?    @db.Uuid
-  title                 String     @default("Chuyến đi mới") @db.VarChar(200)
+  title                 String     @default("Chuyáº¿n Ä‘i má»›i") @db.VarChar(200)
   originName            String?    @db.VarChar(255)
   originLatitude        Decimal?   @db.Decimal(9, 6)
   originLongitude       Decimal?   @db.Decimal(10, 6)
