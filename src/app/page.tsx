@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { TripPlannerLauncher } from "@/components/home/trip-planner-launcher";
 import { SocialComposerLauncher } from "@/components/social/social-composer-launcher";
-import { SocialFeed } from "@/components/social/social-feed";
+import { SocialInfiniteFeed } from "@/components/social/social-infinite-feed";
 import { getPublicSocialFeed } from "@/lib/social-feed/public-feed";
 
 export const dynamic = "force-dynamic";
@@ -156,9 +156,12 @@ export default async function Home() {
             <SocialComposerLauncher />
 
             <div className="mt-5">
-              <SocialFeed
+              <SocialInfiniteFeed
+                key={feed.sessionKey}
                 currentMonth={feed.currentMonth}
-                posts={feed.posts}
+                initialPosts={feed.posts}
+                initialCursor={feed.nextCursor}
+                initialHasMore={feed.hasMore}
               />
             </div>
           </div>
