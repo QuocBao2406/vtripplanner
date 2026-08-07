@@ -22,7 +22,7 @@ function formatPublishedAt(value: Date): string {
 
 function SystemAvatar() {
   return (
-    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-sm font-black text-white shadow-sm">
+    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-sm font-semibold text-white shadow-sm">
       V
     </div>
   );
@@ -32,7 +32,7 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
   if (posts.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-        <p className="font-black text-slate-800">
+        <p className="font-semibold text-slate-800">
           Feed tháng {currentMonth} đang được cập nhật.
         </p>
         <p className="mt-2 text-sm text-slate-500">
@@ -67,19 +67,19 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
 
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="truncate text-sm font-black text-slate-950">
+                    <p className="truncate text-sm font-semibold text-slate-950">
                       {post.sourceName}
                     </p>
                     {post.isSystemPost ? (
                       <span
                         title="Bài đăng từ VTripPlanner"
-                        className="inline-flex size-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white"
+                        className="inline-flex size-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-medium text-white"
                       >
                         ✓
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                  <p className="mt-0.5 text-xs font-normal text-slate-500">
                     {formatPublishedAt(post.publishedAt)} ·{" "}
                     {TYPE_LABELS[post.type]}
                   </p>
@@ -87,24 +87,24 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
               </div>
 
               {post.type === "PROMOTED" ? (
-                <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-extrabold text-amber-800">
+                <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800">
                   Được quảng bá
                 </span>
               ) : post.type === "SEASONAL_GUIDE" ? (
-                <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-extrabold text-emerald-800">
+                <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-800">
                   Tháng {currentMonth}
                 </span>
               ) : null}
             </div>
 
             {post.headline ? (
-              <h3 className="mt-5 text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+              <h3 className="mt-5 text-2xl font-bold leading-snug tracking-[-0.02em] text-slate-950">
                 {post.headline}
               </h3>
             ) : null}
 
             {post.caption ? (
-              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-700 sm:text-[15px]">
+              <p className="mt-3 whitespace-pre-line text-[15px] leading-7 text-slate-700">
                 {post.caption}
               </p>
             ) : null}
@@ -115,7 +115,7 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
                   <span
                     key={place.id}
                     title={place.provinceName}
-                    className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-650"
+                    className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700"
                   >
                     📍 {place.name}
                   </span>
@@ -134,13 +134,13 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
               }}
             />
           ) : (
-            <div className="flex aspect-[16/8] items-center justify-center bg-gradient-to-br from-emerald-100 via-teal-50 to-sky-100 px-6 text-center text-sm font-bold text-emerald-800">
+            <div className="flex aspect-[16/8] items-center justify-center bg-gradient-to-br from-emerald-100 via-teal-50 to-sky-100 px-6 text-center text-sm font-normal text-emerald-800">
               Hình ảnh chuyến đi đang được cập nhật
             </div>
           )}
 
           <div className="px-5 py-3 sm:px-6">
-            <div className="flex items-center justify-between gap-4 text-xs font-semibold text-slate-500">
+            <div className="flex items-center justify-between gap-4 text-xs font-normal text-slate-500">
               <span>
                 {post.reactionCount > 0
                   ? `❤️ ${post.reactionCount}`
@@ -154,7 +154,7 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
                 type="button"
                 disabled
                 title="Reaction sẽ được kết nối ở bước tiếp theo"
-                className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600"
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600"
               >
                 ♡ Reaction
               </button>
@@ -162,7 +162,7 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
                 type="button"
                 disabled
                 title="Comment sẽ được kết nối ở bước tiếp theo"
-                className="rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600"
+                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600"
               >
                 💬 Bình luận
               </button>

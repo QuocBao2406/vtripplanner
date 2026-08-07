@@ -23,33 +23,43 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <section className="relative overflow-hidden bg-slate-950 text-white">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.22),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.15),transparent_35%)]" />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage:
+              'url("/images/vtripplanner-hero-tuyen-lam.jpg")',
+          }}
+        />
+        <div className="absolute inset-0 bg-slate-950/42" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.88)_0%,rgba(2,6,23,0.66)_45%,rgba(2,6,23,0.28)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.18),transparent_30%)]" />
 
-        <header className="relative z-10 border-b border-white/10">
+        <header className="relative z-10 border-b border-white/15 bg-slate-950/20 backdrop-blur-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <Link
               href="/"
-              className="text-xl font-black tracking-tight text-white"
+              className="text-xl font-bold tracking-tight text-white"
             >
               VTripPlanner
             </Link>
 
-            <nav className="flex items-center gap-2 text-sm font-bold">
+            <nav className="flex items-center gap-2 text-sm font-medium">
               <a
                 href="#cong-dong"
-                className="hidden rounded-xl px-3 py-2 text-slate-300 transition hover:bg-white/10 hover:text-white sm:inline-flex"
+                className="hidden rounded-xl px-3 py-2 text-slate-100 transition hover:bg-white/10 hover:text-white sm:inline-flex"
               >
                 Cộng đồng
               </a>
               <Link
                 href="/dang-nhap"
-                className="rounded-xl border border-white/20 px-4 py-2.5 text-white transition hover:bg-white/10"
+                className="rounded-xl border border-white/25 px-4 py-2.5 font-semibold text-white transition hover:bg-white/10"
               >
                 Đăng nhập
               </Link>
               <Link
                 href="/tai-khoan"
-                className="hidden rounded-xl bg-white px-4 py-2.5 text-slate-950 transition hover:bg-emerald-50 sm:inline-flex"
+                className="hidden rounded-xl bg-white px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-emerald-50 sm:inline-flex"
               >
                 Tài khoản
               </Link>
@@ -57,21 +67,21 @@ export default async function Home() {
           </div>
         </header>
 
-        <div className="relative z-10 mx-auto flex min-h-[82vh] max-w-7xl items-center px-4 py-16 sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto flex min-h-[88vh] max-w-7xl items-center px-4 py-16 sm:px-6 lg:px-8">
           <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3.5 py-2 text-xs font-extrabold text-emerald-100">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/25 bg-emerald-950/30 px-3.5 py-2 text-xs font-semibold tracking-[0.12em] text-emerald-50 backdrop-blur">
               <span aria-hidden="true">●</span>
-              Trip Planner + cộng đồng du lịch
+              TRIP PLANNER + CỘNG ĐỒNG DU LỊCH
             </div>
 
-            <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[1.08] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-[1.08] tracking-[-0.035em] text-white sm:text-6xl lg:text-7xl">
               Lên chuyến đi của bạn.
-              <span className="block text-emerald-300">
+              <span className="mt-2 block text-emerald-300">
                 Rồi khám phá cảm hứng từ cộng đồng.
               </span>
             </h1>
 
-            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
+            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-100 sm:text-lg">
               VTripPlanner giúp bạn bắt đầu một lịch trình khi cần, còn những
               câu chuyện, cảnh đẹp và gợi ý đúng mùa sẽ chờ ở ngay phía dưới.
             </p>
@@ -79,7 +89,26 @@ export default async function Home() {
             <div className="mt-8">
               <TripPlannerLauncher />
             </div>
+
+            <div className="mt-10 flex flex-wrap gap-x-8 gap-y-4 text-sm text-slate-100">
+              <div>
+                <p className="font-semibold text-white">Khởi tạo nhanh</p>
+                <p className="mt-1 text-slate-200">
+                  Chỉ bấm nút khi bạn thực sự muốn tạo trip.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Feed đúng mùa</p>
+                <p className="mt-1 text-slate-200">
+                  Nội dung tháng {feed.currentMonth} được tự đưa lên trang chủ.
+                </p>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div className="absolute bottom-4 right-5 z-10 rounded-full bg-slate-950/35 px-3 py-1.5 text-[11px] font-medium text-white/80 backdrop-blur">
+          Hồ Tuyền Lâm · Đà Lạt
         </div>
       </section>
 
@@ -90,10 +119,10 @@ export default async function Home() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,680px)_minmax(220px,0.45fr)] lg:px-8 lg:py-16">
           <aside className="hidden lg:block">
             <div className="sticky top-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
                 VTripPlanner Social
               </p>
-              <h2 className="mt-2 text-xl font-black tracking-tight">
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
                 Một feed dành riêng cho chuyến đi
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -101,7 +130,7 @@ export default async function Home() {
                 nổi bật cùng xuất hiện trong một luồng.
               </p>
 
-              <div className="mt-5 space-y-3 text-sm font-semibold text-slate-600">
+              <div className="mt-5 space-y-3 text-sm font-medium text-slate-600">
                 <p>🌿 Gợi ý tháng {feed.currentMonth}</p>
                 <p>📷 Chia sẻ chuyến đi</p>
                 <p>📍 Cảm hứng từ các địa điểm</p>
@@ -111,10 +140,10 @@ export default async function Home() {
 
           <div className="min-w-0">
             <div className="mb-6">
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
                 Cộng đồng du lịch
               </p>
-              <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+              <h2 className="mt-2 text-3xl font-bold tracking-[-0.025em] text-slate-950 sm:text-4xl">
                 Chuyến đi, câu chuyện và gợi ý cho tháng {feed.currentMonth}
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
@@ -137,10 +166,10 @@ export default async function Home() {
           <aside className="hidden lg:block">
             <div className="sticky top-6 space-y-4">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                   Đang đúng mùa
                 </p>
-                <p className="mt-2 text-lg font-black">
+                <p className="mt-2 text-lg font-semibold text-slate-950">
                   Tháng {feed.currentMonth}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -150,7 +179,7 @@ export default async function Home() {
               </div>
 
               <div className="rounded-3xl bg-gradient-to-br from-emerald-700 to-teal-800 p-5 text-white shadow-sm">
-                <p className="text-sm font-black">
+                <p className="text-sm font-semibold">
                   Reaction sẽ giúp lịch trình hiểu bạn hơn
                 </p>
                 <p className="mt-2 text-xs leading-6 text-emerald-50">
@@ -166,7 +195,7 @@ export default async function Home() {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-7 text-sm text-slate-500 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <p className="font-bold text-slate-700">VTripPlanner</p>
+          <p className="font-semibold text-slate-700">VTripPlanner</p>
           <p>Lập lịch trình và chia sẻ cảm hứng du lịch trong cùng một nơi.</p>
         </div>
       </footer>

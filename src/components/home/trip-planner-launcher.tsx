@@ -30,7 +30,7 @@ export function TripPlannerLauncher() {
             setIsOpen((currentValue) => !currentValue);
             setSubmitted(false);
           }}
-          className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3.5 text-base font-black text-white shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-500"
+          className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400"
         >
           <span aria-hidden="true">✈</span>
           Tạo chuyến đi
@@ -38,7 +38,7 @@ export function TripPlannerLauncher() {
 
         <a
           href="#cong-dong"
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/30 bg-white/10 px-5 py-3.5 text-sm font-extrabold text-white backdrop-blur transition hover:bg-white/15"
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/25 bg-white/10 px-5 py-3.5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/15"
         >
           Xem cộng đồng
           <span aria-hidden="true">↓</span>
@@ -48,15 +48,15 @@ export function TripPlannerLauncher() {
       {isOpen ? (
         <div
           id="trip-planner-form"
-          className="mt-6 overflow-hidden rounded-3xl border border-white/20 bg-white text-left text-slate-950 shadow-2xl shadow-slate-950/20"
+          className="mt-6 overflow-hidden rounded-3xl border border-white/15 bg-white text-left text-slate-950 shadow-2xl shadow-slate-950/20"
         >
           <div className="border-b border-slate-100 px-5 py-5 sm:px-7">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-700">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
                   Lên lịch chuyến đi
                 </p>
-                <h2 className="mt-1 text-xl font-black">
+                <h2 className="mt-1 text-xl font-semibold text-slate-950">
                   Bạn muốn đi đâu?
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -71,7 +71,7 @@ export function TripPlannerLauncher() {
                   setIsOpen(false);
                   setSubmitted(false);
                 }}
-                className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-black text-slate-500 transition hover:bg-slate-50"
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50"
               >
                 ×
               </button>
@@ -81,7 +81,7 @@ export function TripPlannerLauncher() {
           <form onSubmit={handleSubmit} className="space-y-5 p-5 sm:p-7">
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="block">
-                <span className="text-sm font-bold text-slate-700">
+                <span className="text-sm font-medium text-slate-700">
                   Điểm đến hoặc khu vực
                 </span>
                 <input
@@ -94,7 +94,7 @@ export function TripPlannerLauncher() {
               </label>
 
               <label className="block">
-                <span className="text-sm font-bold text-slate-700">
+                <span className="text-sm font-medium text-slate-700">
                   Ngày bắt đầu
                 </span>
                 <input
@@ -106,7 +106,7 @@ export function TripPlannerLauncher() {
               </label>
 
               <label className="block">
-                <span className="text-sm font-bold text-slate-700">
+                <span className="text-sm font-medium text-slate-700">
                   Số ngày
                 </span>
                 <input
@@ -121,7 +121,7 @@ export function TripPlannerLauncher() {
               </label>
 
               <label className="block">
-                <span className="text-sm font-bold text-slate-700">
+                <span className="text-sm font-medium text-slate-700">
                   Ngân sách
                 </span>
                 <select
@@ -137,14 +137,14 @@ export function TripPlannerLauncher() {
             </div>
 
             <fieldset>
-              <legend className="text-sm font-bold text-slate-700">
+              <legend className="text-sm font-medium text-slate-700">
                 Bạn thích điều gì trong chuyến đi?
               </legend>
               <div className="mt-3 flex flex-wrap gap-2">
                 {INTEREST_OPTIONS.map((interest) => (
                   <label
                     key={interest}
-                    className="cursor-pointer rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-600 transition has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 has-[:checked]:text-emerald-800"
+                    className="cursor-pointer rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-600 transition has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 has-[:checked]:text-emerald-800"
                   >
                     <input
                       type="checkbox"
@@ -166,7 +166,7 @@ export function TripPlannerLauncher() {
 
               <button
                 type="submit"
-                className="shrink-0 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-slate-800"
+                className="shrink-0 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
                 Tạo lịch trình
               </button>
@@ -175,7 +175,7 @@ export function TripPlannerLauncher() {
             {submitted ? (
               <div
                 role="status"
-                className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold leading-6 text-emerald-800"
+                className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-800"
               >
                 Phần nhập thông tin đã sẵn sàng. Dữ liệu chưa được lưu; bước sau
                 sẽ kết nối nút này với Trip Planner và AI.
