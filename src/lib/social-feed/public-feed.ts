@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 const PLACE_IMAGE_BUCKET = "place-images";
+const TRAVEL_POST_MEDIA_BUCKET = "travel-post-media";
 const MAX_FEED_POSTS = 20;
 
 export type PublicSocialFeedPost = {
@@ -30,9 +31,23 @@ export type PublicSocialFeed = {
   posts: PublicSocialFeedPost[];
 };
 
-function getPublicPlaceImageUrl(storagePath: string | null): string | null {
+function getPublicStorageUrl(
+  bucketName: string,
+  storagePath: string | null,
+): string | null {
   if (!storagePath) {
     return null;
+  }
+
+  if (storagePath.startsWith("/")) {
+    return storagePath;
+  }
+
+  if (
+    storagePath.startsWith("https://") ||
+    storagePath.startsWith("http://")
+  ) {
+    return storagePath;
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, "");
@@ -46,7 +61,17 @@ function getPublicPlaceImageUrl(storagePath: string | null): string | null {
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
-  return `${supabaseUrl}/storage/v1/object/public/${PLACE_IMAGE_BUCKET}/${encodedPath}`;
+  return `${supabaseUrl}/storage/v1/object/public/${bucketName}/${encodedPath}`;
+}
+
+function getPublicPlaceImageUrl(storagePath: string | null): string | null {
+  return getPublicStorageUrl(PLACE_IMAGE_BUCKET, storagePath);
+}
+
+function getPublicTravelPostMediaUrl(
+  storagePath: string | null,
+): string | null {
+  return getPublicStorageUrl(TRAVEL_POST_MEDIA_BUCKET, storagePath);
 }
 
 function normalizeMonth(value: number): number {
@@ -107,6 +132,19 @@ export async function getPublicSocialFeed(
           },
         },
       },
+      media: {
+        where: {
+          type: "IMAGE",
+        },
+        orderBy: {
+          sortOrder: "asc",
+        },
+        take: 1,
+        select: {
+          storagePath: true,
+          altText: true,
+        },
+      },
       places: {
         orderBy: [
           {
@@ -163,8 +201,9 @@ export async function getPublicSocialFeed(
   return {
     currentMonth,
     posts: posts.map((post) => {
+      const postMedia = post.media[0] ?? null;
       const primaryPlaceLink = post.places[0] ?? null;
-      const coverImage = primaryPlaceLink?.place.images[0] ?? null;
+      const placeFallbackImage = primaryPlaceLink?.place.images[0] ?? null;
       const authorProfile = post.author?.profile ?? null;
 
       return {
@@ -180,11 +219,12 @@ export async function getPublicSocialFeed(
           "VTripPlanner",
         sourceAvatarUrl: authorProfile?.avatarUrl ?? null,
         isSystemPost: post.author === null,
-        coverImageUrl: getPublicPlaceImageUrl(
-          coverImage?.storagePath ?? null,
-        ),
+        coverImageUrl:
+          getPublicTravelPostMediaUrl(postMedia?.storagePath ?? null) ??
+          getPublicPlaceImageUrl(placeFallbackImage?.storagePath ?? null),
         coverImageAlt:
-          coverImage?.altText ??
+          postMedia?.altText ??
+          placeFallbackImage?.altText ??
           primaryPlaceLink?.place.name ??
           post.headline ??
           "Ảnh du lịch VTripPlanner",
