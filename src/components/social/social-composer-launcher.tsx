@@ -589,7 +589,7 @@ export function SocialComposerLauncher() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 border-t border-slate-100 px-4 py-2 text-center text-sm font-medium text-slate-600 sm:px-5">
+      <div className="grid grid-cols-3 border-t border-slate-100 px-4 py-2 text-center text-xs font-medium text-slate-600 sm:px-5 sm:text-sm">
         <button
           type="button"
           onClick={openComposer}
@@ -605,6 +605,15 @@ export function SocialComposerLauncher() {
           className="rounded-xl py-2.5 transition hover:bg-slate-50 disabled:cursor-wait"
         >
           🎬 Video
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            router.push("/bai-viet-cua-toi");
+          }}
+          className="rounded-xl py-2.5 transition hover:bg-slate-50"
+        >
+          📝 Bài viết của tôi
         </button>
       </div>
 
