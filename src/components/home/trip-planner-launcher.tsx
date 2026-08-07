@@ -1,6 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import {
+  type FormEvent,
+  useMemo,
+  useState,
+} from "react";
 
 const INTEREST_OPTIONS = [
   "Khám phá cảnh đẹp",
@@ -10,178 +14,687 @@ const INTEREST_OPTIONS = [
   "Trải nghiệm địa phương",
 ];
 
-export function TripPlannerLauncher() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+type BudgetLevel =
+  | "ECONOMY"
+  | "STANDARD"
+  | "PREMIUM";
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+type PlanActivity = {
+  slot: "MORNING" | "AFTERNOON" | "EVENING";
+  slotLabel: string;
+  time: string;
+  placeId: string;
+  placeName: string;
+  categoryName: string;
+  addressLine: string;
+  provinceName: string;
+  imageUrl: string | null;
+  shortDescription: string | null;
+  seasonNote: string | null;
+  entryPrice: number;
+  currency: string;
+  score: number;
+  reasons: string[];
+  openingNote: string;
+  distanceFromPreviousKm: number | null;
+};
+
+type PlanDay = {
+  dayNumber: number;
+  date: string;
+  dateLabel: string;
+  summary: string;
+  activities: PlanActivity[];
+};
+
+type TripPlan = {
+  destination: string;
+  startDate: string;
+  duration: number;
+  budget: BudgetLevel;
+  interests: string[];
+  candidateCount: number;
+  scheduledPlaceCount: number;
+  estimatedEntryFees: number;
+  currency: string;
+  personalization: {
+    applied: boolean;
+    reactionCount: number;
+    matchedPlaceCount: number;
+    preferredMonths: number[];
+  };
+  scoringGuide: string[];
+  days: PlanDay[];
+};
+
+type PlanApiResponse = {
+  ok?: boolean;
+  plan?: TripPlan;
+  message?: string;
+  availableDestinations?: string[];
+};
+
+const BUDGET_LABELS: Record<
+  BudgetLevel,
+  string
+> = {
+  ECONOMY: "Tiết kiệm",
+  STANDARD: "Cân bằng",
+  PREMIUM: "Thoải mái",
+};
+
+function getLocalDateKey(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(
+    now.getMonth() + 1,
+  ).padStart(2, "0");
+  const day = String(
+    now.getDate(),
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatMoney(
+  amount: number,
+  currency = "VND",
+): string {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function getSlotBadgeClass(
+  slot: PlanActivity["slot"],
+): string {
+  if (slot === "MORNING") {
+    return "bg-amber-50 text-amber-700";
+  }
+
+  if (slot === "AFTERNOON") {
+    return "bg-sky-50 text-sky-700";
+  }
+
+  return "bg-indigo-50 text-indigo-700";
+}
+
+export function TripPlannerLauncher() {
+  const today = useMemo(
+    () => getLocalDateKey(),
+    [],
+  );
+
+  const [isOpen, setIsOpen] =
+    useState(false);
+  const [destination, setDestination] =
+    useState("Đà Lạt");
+  const [startDate, setStartDate] =
+    useState(today);
+  const [duration, setDuration] =
+    useState(3);
+  const [budget, setBudget] =
+    useState<BudgetLevel>("STANDARD");
+  const [interests, setInterests] =
+    useState<string[]>([
+      "Khám phá cảnh đẹp",
+    ]);
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+  const [errorMessage, setErrorMessage] =
+    useState("");
+  const [
+    availableDestinations,
+    setAvailableDestinations,
+  ] = useState<string[]>([]);
+  const [plan, setPlan] =
+    useState<TripPlan | null>(null);
+
+  function toggleInterest(
+    interest: string,
+  ) {
+    setInterests((current) =>
+      current.includes(interest)
+        ? current.filter(
+            (item) => item !== interest,
+          )
+        : [...current, interest],
+    );
+  }
+
+  async function readPayload(
+    response: Response,
+  ): Promise<PlanApiResponse> {
+    try {
+      return (
+        (await response.json()) as PlanApiResponse
+      );
+    } catch {
+      return {};
+    }
+  }
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
-    setSubmitted(true);
+
+    setIsSubmitting(true);
+    setErrorMessage("");
+    setAvailableDestinations([]);
+
+    try {
+      const response = await fetch(
+        "/api/trip-planner/plan",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            destination,
+            startDate,
+            duration,
+            budget,
+            interests,
+          }),
+        },
+      );
+
+      const payload =
+        await readPayload(response);
+
+      if (
+        !response.ok ||
+        !payload.plan
+      ) {
+        setPlan(null);
+        setErrorMessage(
+          payload.message ??
+            "Không thể tạo lịch trình. Vui lòng thử lại.",
+        );
+        setAvailableDestinations(
+          payload.availableDestinations ??
+            [],
+        );
+        return;
+      }
+
+      setPlan(payload.plan);
+    } catch {
+      setPlan(null);
+      setErrorMessage(
+        "Không thể kết nối để tạo lịch trình. Vui lòng thử lại.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
-    <div className="w-full max-w-3xl">
+    <div className="w-full max-w-5xl">
       <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
         <button
           type="button"
-          aria-expanded={isOpen}
-          aria-controls="trip-planner-form"
           onClick={() => {
-            setIsOpen((currentValue) => !currentValue);
-            setSubmitted(false);
+            setIsOpen((current) => !current);
+            setErrorMessage("");
           }}
-          className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400"
+          className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400"
         >
-          <span aria-hidden="true">✈</span>
-          Tạo chuyến đi
+          ✈ Tạo chuyến đi
         </button>
 
         <a
           href="#cong-dong"
-          className="inline-flex items-center gap-2 rounded-2xl border border-white/25 bg-white/10 px-5 py-3.5 text-sm font-medium text-white backdrop-blur transition hover:bg-white/15"
+          className="rounded-2xl border border-white/25 bg-white/5 px-5 py-3 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10"
         >
-          Xem cộng đồng
-          <span aria-hidden="true">↓</span>
+          Xem cộng đồng ↓
         </a>
       </div>
 
       {isOpen ? (
-        <div
-          id="trip-planner-form"
-          className="mt-6 overflow-hidden rounded-3xl border border-white/15 bg-white text-left text-slate-950 shadow-2xl shadow-slate-950/20"
-        >
-          <div className="border-b border-slate-100 px-5 py-5 sm:px-7">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                  Lên lịch chuyến đi
-                </p>
-                <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                  Bạn muốn đi đâu?
-                </h2>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Chỉ nhập thông tin khi bạn thực sự muốn bắt đầu tạo trip.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                aria-label="Đóng form tạo chuyến đi"
-                onClick={() => {
-                  setIsOpen(false);
-                  setSubmitted(false);
-                }}
-                className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50"
-              >
-                ×
-              </button>
+        <div className="mt-5 rounded-3xl border border-white/15 bg-slate-950/55 p-5 shadow-2xl backdrop-blur-xl sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                Trip Planner nội bộ
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-white">
+                Tạo lịch trình từ dữ liệu thật
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">
+                Hệ thống ưu tiên địa điểm theo sở thích, mùa đi, ngân sách và reaction của bạn nếu đã đăng nhập.
+              </p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="rounded-xl border border-white/15 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+            >
+              Thu gọn
+            </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5 p-5 sm:p-7">
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  Điểm đến hoặc khu vực
-                </span>
-                <input
-                  required
-                  name="destination"
-                  type="text"
-                  placeholder="Ví dụ: Đà Lạt"
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                />
-              </label>
+          <form
+            onSubmit={handleSubmit}
+            className="mt-5 grid gap-4 lg:grid-cols-12"
+          >
+            <label className="lg:col-span-4">
+              <span className="text-xs font-medium text-slate-300">
+                Điểm đến
+              </span>
+              <input
+                required
+                maxLength={100}
+                value={destination}
+                onChange={(event) =>
+                  setDestination(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ví dụ: Đà Lạt"
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
+              />
+            </label>
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  Ngày bắt đầu
-                </span>
-                <input
-                  required
-                  name="startDate"
-                  type="date"
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                />
-              </label>
+            <label className="lg:col-span-3">
+              <span className="text-xs font-medium text-slate-300">
+                Ngày bắt đầu
+              </span>
+              <input
+                required
+                type="date"
+                min={today}
+                value={startDate}
+                onChange={(event) =>
+                  setStartDate(
+                    event.target.value,
+                  )
+                }
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
+              />
+            </label>
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  Số ngày
-                </span>
-                <input
-                  required
-                  min={1}
-                  max={30}
-                  defaultValue={3}
-                  name="durationDays"
-                  type="number"
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                />
-              </label>
+            <label className="lg:col-span-2">
+              <span className="text-xs font-medium text-slate-300">
+                Số ngày
+              </span>
+              <select
+                value={duration}
+                onChange={(event) =>
+                  setDuration(
+                    Number(
+                      event.target.value,
+                    ),
+                  )
+                }
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400"
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map(
+                  (day) => (
+                    <option
+                      key={day}
+                      value={day}
+                    >
+                      {day} ngày
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  Ngân sách
-                </span>
-                <select
-                  name="budget"
-                  defaultValue="STANDARD"
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-                >
-                  <option value="ECONOMY">Tiết kiệm</option>
-                  <option value="STANDARD">Tiêu chuẩn</option>
-                  <option value="PREMIUM">Thoải mái</option>
-                </select>
-              </label>
-            </div>
-
-            <fieldset>
-              <legend className="text-sm font-medium text-slate-700">
-                Bạn thích điều gì trong chuyến đi?
-              </legend>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {INTEREST_OPTIONS.map((interest) => (
-                  <label
-                    key={interest}
-                    className="cursor-pointer rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-600 transition has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 has-[:checked]:text-emerald-800"
+            <label className="lg:col-span-3">
+              <span className="text-xs font-medium text-slate-300">
+                Ngân sách
+              </span>
+              <select
+                value={budget}
+                onChange={(event) =>
+                  setBudget(
+                    event.target
+                      .value as BudgetLevel,
+                  )
+                }
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400"
+              >
+                {(
+                  Object.keys(
+                    BUDGET_LABELS,
+                  ) as BudgetLevel[]
+                ).map((level) => (
+                  <option
+                    key={level}
+                    value={level}
                   >
-                    <input
-                      type="checkbox"
-                      name="interests"
-                      value={interest}
-                      className="sr-only"
-                    />
-                    {interest}
-                  </label>
+                    {BUDGET_LABELS[level]}
+                  </option>
                 ))}
+              </select>
+            </label>
+
+            <fieldset className="lg:col-span-12">
+              <legend className="text-xs font-medium text-slate-300">
+                Sở thích
+              </legend>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                {INTEREST_OPTIONS.map(
+                  (interest) => {
+                    const selected =
+                      interests.includes(
+                        interest,
+                      );
+
+                    return (
+                      <button
+                        key={interest}
+                        type="button"
+                        onClick={() =>
+                          toggleInterest(
+                            interest,
+                          )
+                        }
+                        className={`rounded-full border px-3.5 py-2 text-xs font-medium transition ${
+                          selected
+                            ? "border-emerald-300 bg-emerald-400/20 text-emerald-100"
+                            : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10"
+                        }`}
+                      >
+                        {selected
+                          ? "✓ "
+                          : ""}
+                        {interest}
+                      </button>
+                    );
+                  },
+                )}
               </div>
             </fieldset>
 
-            <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-5 text-slate-500">
-                Ở bước hiện tại, form này mới hoàn thiện trải nghiệm nhập liệu.
-                Kết nối AI tạo lịch trình sẽ được nối ở bước Trip Planner tiếp theo.
-              </p>
-
+            <div className="flex flex-wrap items-center gap-3 lg:col-span-12">
               <button
                 type="submit"
-                className="shrink-0 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                disabled={
+                  isSubmitting ||
+                  !destination.trim() ||
+                  !startDate
+                }
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:bg-slate-600 disabled:text-slate-300"
               >
-                Tạo lịch trình
+                {isSubmitting
+                  ? "Đang xếp lịch..."
+                  : "Tạo lịch trình"}
               </button>
-            </div>
 
-            {submitted ? (
-              <div
-                role="status"
-                className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-800"
-              >
-                Phần nhập thông tin đã sẵn sàng. Dữ liệu chưa được lưu; bước sau
-                sẽ kết nối nút này với Trip Planner và AI.
-              </div>
-            ) : null}
+              <p className="text-xs leading-5 text-slate-400">
+                Chưa lưu chuyến đi vào tài khoản ở bước này.
+              </p>
+            </div>
           </form>
+
+          {errorMessage ? (
+            <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-950/40 px-4 py-3 text-sm text-red-100">
+              <p className="font-medium">
+                {errorMessage}
+              </p>
+
+              {availableDestinations.length >
+              0 ? (
+                <p className="mt-2 text-xs leading-5 text-red-200/80">
+                  Dữ liệu hiện có:{" "}
+                  {availableDestinations.join(
+                    ", ",
+                  )}
+                  .
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {plan ? (
+            <div className="mt-6 overflow-hidden rounded-3xl bg-slate-50 text-slate-950 shadow-xl">
+              <div className="border-b border-slate-200 bg-white p-5 sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                      Lịch trình đề xuất
+                    </p>
+                    <h3 className="mt-2 text-2xl font-semibold">
+                      {plan.destination} ·{" "}
+                      {plan.duration} ngày
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      Đã xếp{" "}
+                      {
+                        plan.scheduledPlaceCount
+                      }{" "}
+                      địa điểm từ{" "}
+                      {plan.candidateCount} ứng viên
+                      trong database.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                      Phí tham quan ước tính
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-emerald-900">
+                      {formatMoney(
+                        plan.estimatedEntryFees,
+                        plan.currency,
+                      )}
+                    </p>
+                    <p className="mt-1 text-[11px] text-emerald-700">
+                      Chưa gồm ăn ở và di chuyển.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                    {BUDGET_LABELS[
+                      plan.budget
+                    ]}
+                  </span>
+
+                  {plan.personalization
+                    .applied ? (
+                    <span className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700">
+                      ♥ Có cá nhân hóa từ{" "}
+                      {
+                        plan.personalization
+                          .reactionCount
+                      }{" "}
+                      reaction
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600">
+                      Chưa có reaction để cá nhân hóa
+                    </span>
+                  )}
+
+                  {plan.personalization
+                    .matchedPlaceCount > 0 ? (
+                    <span className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700">
+                      {
+                        plan.personalization
+                          .matchedPlaceCount
+                      }{" "}
+                      địa điểm trùng sở thích reaction
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-5 p-4 sm:p-6">
+                {plan.days.map((day) => (
+                  <section
+                    key={day.date}
+                    className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-emerald-700">
+                          NGÀY{" "}
+                          {day.dayNumber}
+                        </p>
+                        <h4 className="mt-1 font-semibold capitalize text-slate-950">
+                          {day.dateLabel}
+                        </h4>
+                      </div>
+
+                      <p className="max-w-lg text-xs leading-5 text-slate-500">
+                        {day.summary}
+                      </p>
+                    </div>
+
+                    {day.activities.length >
+                    0 ? (
+                      <div className="mt-4 grid gap-3">
+                        {day.activities.map(
+                          (activity) => (
+                            <article
+                              key={`${day.date}-${activity.slot}-${activity.placeId}`}
+                              className="grid overflow-hidden rounded-2xl border border-slate-200 md:grid-cols-[150px_1fr]"
+                            >
+                              {activity.imageUrl ? (
+                                <div
+                                  role="img"
+                                  aria-label={
+                                    activity.placeName
+                                  }
+                                  className="min-h-32 bg-slate-100 bg-cover bg-center"
+                                  style={{
+                                    backgroundImage: `url("${activity.imageUrl}")`,
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex min-h-32 items-center justify-center bg-slate-100 text-3xl">
+                                  📍
+                                </div>
+                              )}
+
+                              <div className="p-4">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getSlotBadgeClass(
+                                      activity.slot,
+                                    )}`}
+                                  >
+                                    {
+                                      activity.time
+                                    }{" "}
+                                    ·{" "}
+                                    {
+                                      activity.slotLabel
+                                    }
+                                  </span>
+
+                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                    {
+                                      activity.categoryName
+                                    }
+                                  </span>
+
+                                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                    Điểm phù hợp{" "}
+                                    {
+                                      activity.score
+                                    }
+                                  </span>
+                                </div>
+
+                                <h5 className="mt-3 text-base font-semibold text-slate-950">
+                                  {
+                                    activity.placeName
+                                  }
+                                </h5>
+
+                                <p className="mt-1 text-xs text-slate-500">
+                                  📍{" "}
+                                  {
+                                    activity.addressLine
+                                  }
+                                  {" · "}
+                                  {
+                                    activity.provinceName
+                                  }
+                                </p>
+
+                                {activity.shortDescription ? (
+                                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                                    {
+                                      activity.shortDescription
+                                    }
+                                  </p>
+                                ) : null}
+
+                                <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                                  {activity.reasons.map(
+                                    (reason) => (
+                                      <span
+                                        key={reason}
+                                        className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600"
+                                      >
+                                        {reason}
+                                      </span>
+                                    ),
+                                  )}
+                                </div>
+
+                                <div className="mt-3 grid gap-1 text-xs text-slate-500 sm:grid-cols-2">
+                                  <p>
+                                    🕒{" "}
+                                    {
+                                      activity.openingNote
+                                    }
+                                  </p>
+                                  <p>
+                                    🎟{" "}
+                                    {activity.entryPrice >
+                                    0
+                                      ? formatMoney(
+                                          activity.entryPrice,
+                                          activity.currency,
+                                        )
+                                      : "Không có phí vào cửa trong dữ liệu"}
+                                  </p>
+
+                                  {activity.distanceFromPreviousKm !==
+                                  null ? (
+                                    <p className="sm:col-span-2">
+                                      ↔ Khoảng cách thẳng từ điểm trước:{" "}
+                                      {
+                                        activity.distanceFromPreviousKm
+                                      }{" "}
+                                      km
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </article>
+                          ),
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
+                        Chưa có hoạt động phù hợp để xếp vào ngày này.
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-200 bg-white px-5 py-4 text-xs leading-5 text-slate-500 sm:px-6">
+                Lịch trình này được tạo bằng thuật toán nội bộ từ dữ liệu VTripPlanner, không phải AI sinh tự do. Giá, mùa và giờ mở cửa chỉ phản ánh dữ liệu hiện có trong đồ án.
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
