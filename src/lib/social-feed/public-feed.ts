@@ -16,6 +16,8 @@ export type PublicSocialFeedPost = {
   isSystemPost: boolean;
   coverImageUrl: string | null;
   coverImageAlt: string;
+  mediaType: "IMAGE" | "VIDEO" | null;
+  mediaMimeType: string | null;
   places: Array<{
     id: string;
     name: string;
@@ -133,15 +135,14 @@ export async function getPublicSocialFeed(
         },
       },
       media: {
-        where: {
-          type: "IMAGE",
-        },
         orderBy: {
           sortOrder: "asc",
         },
         take: 1,
         select: {
+          type: true,
           storagePath: true,
+          mimeType: true,
           altText: true,
         },
       },
@@ -206,6 +207,16 @@ export async function getPublicSocialFeed(
       const placeFallbackImage = primaryPlaceLink?.place.images[0] ?? null;
       const authorProfile = post.author?.profile ?? null;
 
+      const postMediaUrl = getPublicTravelPostMediaUrl(
+        postMedia?.storagePath ?? null,
+      );
+
+      const placeFallbackUrl = getPublicPlaceImageUrl(
+        placeFallbackImage?.storagePath ?? null,
+      );
+
+      const resolvedMediaUrl = postMediaUrl ?? placeFallbackUrl;
+
       return {
         id: post.id,
         type: post.type,
@@ -216,18 +227,26 @@ export async function getPublicSocialFeed(
         sourceName:
           authorProfile?.displayName ??
           authorProfile?.fullName ??
-          "VTripPlanner",
+          (post.author ? "Người dùng VTripPlanner" : "VTripPlanner"),
         sourceAvatarUrl: authorProfile?.avatarUrl ?? null,
         isSystemPost: post.author === null,
-        coverImageUrl:
-          getPublicTravelPostMediaUrl(postMedia?.storagePath ?? null) ??
-          getPublicPlaceImageUrl(placeFallbackImage?.storagePath ?? null),
+        coverImageUrl: resolvedMediaUrl,
         coverImageAlt:
           postMedia?.altText ??
           placeFallbackImage?.altText ??
           primaryPlaceLink?.place.name ??
           post.headline ??
           "Ảnh du lịch VTripPlanner",
+        mediaType: postMediaUrl
+          ? postMedia?.type ?? null
+          : placeFallbackUrl
+            ? "IMAGE"
+            : null,
+        mediaMimeType: postMediaUrl
+          ? postMedia?.mimeType ?? null
+          : placeFallbackUrl
+            ? "image/*"
+            : null,
         places: post.places.map((placeLink) => ({
           id: placeLink.place.id,
           name: placeLink.place.name,

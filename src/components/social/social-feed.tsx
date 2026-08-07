@@ -20,23 +20,78 @@ function formatPublishedAt(value: Date): string {
   }).format(value);
 }
 
-function SystemAvatar() {
+function getInitial(name: string): string {
+  const normalized = name.trim();
+  return normalized ? normalized.charAt(0).toLocaleUpperCase("vi-VN") : "V";
+}
+
+function PostAvatar({ post }: { post: PublicSocialFeedPost }) {
+  if (post.sourceAvatarUrl) {
+    return (
+      <div
+        role="img"
+        aria-label={`Ảnh đại diện của ${post.sourceName}`}
+        className="size-11 shrink-0 rounded-full bg-cover bg-center shadow-sm"
+        style={{ backgroundImage: `url("${post.sourceAvatarUrl}")` }}
+      />
+    );
+  }
+
   return (
-    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-sm font-semibold text-white shadow-sm">
-      V
+    <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 text-sm font-semibold text-white shadow-sm">
+      {getInitial(post.sourceName)}
     </div>
   );
 }
 
-export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
+function PostMedia({ post }: { post: PublicSocialFeedPost }) {
+  if (!post.coverImageUrl) {
+    return null;
+  }
+
+  if (post.mediaType === "VIDEO") {
+    return (
+      <div className="border-y border-slate-100 bg-slate-950">
+        <video
+          controls
+          preload="metadata"
+          className="mx-auto max-h-[620px] w-full object-contain"
+          aria-label={post.coverImageAlt}
+        >
+          <source
+            src={post.coverImageUrl}
+            type={post.mediaMimeType ?? undefined}
+          />
+          Trình duyệt của bạn chưa hỗ trợ phát video.
+        </video>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="img"
+      aria-label={post.coverImageAlt}
+      className="aspect-[16/10] w-full bg-slate-100 bg-cover bg-center"
+      style={{
+        backgroundImage: `url("${post.coverImageUrl}")`,
+      }}
+    />
+  );
+}
+
+export function SocialFeed({
+  currentMonth,
+  posts,
+}: SocialFeedProps) {
   if (posts.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-        <p className="font-semibold text-slate-800">
-          Feed tháng {currentMonth} đang được cập nhật.
+      <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+        <p className="text-sm font-semibold text-slate-800">
+          Feed tháng {currentMonth} đang chờ những chuyến đi đầu tiên.
         </p>
-        <p className="mt-2 text-sm text-slate-500">
-          Các bài chia sẻ mới sẽ xuất hiện tại đây.
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Các bài chia sẻ và gợi ý phù hợp sẽ xuất hiện tại đây.
         </p>
       </div>
     );
@@ -49,114 +104,91 @@ export function SocialFeed({ currentMonth, posts }: SocialFeedProps) {
           key={post.id}
           className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
         >
-          <div className="p-5 sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-3">
-                {post.sourceAvatarUrl ? (
-                  <div
-                    role="img"
-                    aria-label={`Ảnh đại diện ${post.sourceName}`}
-                    className="size-11 shrink-0 rounded-full bg-slate-200 bg-cover bg-center"
-                    style={{
-                      backgroundImage: `url("${post.sourceAvatarUrl}")`,
-                    }}
-                  />
-                ) : (
-                  <SystemAvatar />
-                )}
+          <div className="flex items-start gap-3 p-4 sm:p-5">
+            <PostAvatar post={post} />
 
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="truncate text-sm font-semibold text-slate-950">
-                      {post.sourceName}
-                    </p>
-                    {post.isSystemPost ? (
-                      <span
-                        title="Bài đăng từ VTripPlanner"
-                        className="inline-flex size-4 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-medium text-white"
-                      >
-                        ✓
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-0.5 text-xs font-normal text-slate-500">
-                    {formatPublishedAt(post.publishedAt)} ·{" "}
-                    {TYPE_LABELS[post.type]}
-                  </p>
-                </div>
-              </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p className="font-semibold text-slate-950">
+                  {post.sourceName}
+                </p>
 
-              {post.type === "PROMOTED" ? (
-                <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-800">
-                  Được quảng bá
-                </span>
-              ) : post.type === "SEASONAL_GUIDE" ? (
-                <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-medium text-emerald-800">
-                  Tháng {currentMonth}
-                </span>
-              ) : null}
-            </div>
-
-            {post.headline ? (
-              <h3 className="mt-5 text-2xl font-bold leading-snug tracking-[-0.02em] text-slate-950">
-                {post.headline}
-              </h3>
-            ) : null}
-
-            {post.caption ? (
-              <p className="mt-3 whitespace-pre-line text-[15px] leading-7 text-slate-700">
-                {post.caption}
-              </p>
-            ) : null}
-
-            {post.places.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {post.places.map((place) => (
-                  <span
-                    key={place.id}
-                    title={place.provinceName}
-                    className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700"
-                  >
-                    📍 {place.name}
+                {post.isSystemPost ? (
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    VTripPlanner
                   </span>
-                ))}
+                ) : null}
               </div>
-            ) : null}
+
+              <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                <span>{formatPublishedAt(post.publishedAt)}</span>
+                <span aria-hidden="true">·</span>
+                <span>{TYPE_LABELS[post.type]}</span>
+              </div>
+            </div>
           </div>
 
-          {post.coverImageUrl ? (
-            <div
-              role="img"
-              aria-label={post.coverImageAlt}
-              className="aspect-[16/10] w-full bg-slate-100 bg-cover bg-center sm:aspect-[16/9]"
-              style={{
-                backgroundImage: `url("${post.coverImageUrl}")`,
-              }}
-            />
-          ) : (
-            <div className="flex aspect-[16/8] items-center justify-center bg-gradient-to-br from-emerald-100 via-teal-50 to-sky-100 px-6 text-center text-sm font-normal text-emerald-800">
-              Hình ảnh chuyến đi đang được cập nhật
-            </div>
-          )}
+          {(post.headline || post.caption) ? (
+            <div className="px-4 pb-4 sm:px-5">
+              {post.headline ? (
+                <h3 className="text-lg font-semibold leading-7 text-slate-950 sm:text-xl">
+                  {post.headline}
+                </h3>
+              ) : null}
 
-          <div className="px-5 py-3 sm:px-6">
-            <div className="flex items-center justify-between gap-4 text-xs font-normal text-slate-500">
+              {post.caption ? (
+                <p
+                  className={`whitespace-pre-wrap text-sm leading-7 text-slate-700 ${
+                    post.headline ? "mt-2" : ""
+                  }`}
+                >
+                  {post.caption}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <PostMedia post={post} />
+
+          {post.places.length > 0 ? (
+            <div className="flex flex-wrap gap-2 px-4 pt-4 sm:px-5">
+              {post.places.map((place) => (
+                <span
+                  key={place.id}
+                  className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800"
+                >
+                  📍 {place.name}
+                  <span className="text-emerald-600">
+                    {" "}
+                    · {place.provinceName}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="px-4 pt-4 sm:px-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs text-slate-500">
               <span>
                 {post.reactionCount > 0
-                  ? `❤️ ${post.reactionCount}`
+                  ? `💚 ${post.reactionCount}`
                   : "Chưa có reaction"}
               </span>
-              <span>{post.commentCount} bình luận</span>
+              <span>
+                {post.commentCount > 0
+                  ? `${post.commentCount} bình luận`
+                  : "Chưa có bình luận"}
+              </span>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 border-t border-slate-100 pt-2">
+            <div className="grid grid-cols-2 gap-2 py-2">
               <button
                 type="button"
                 disabled
                 title="Reaction sẽ được kết nối ở bước tiếp theo"
                 className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600"
               >
-                ♡ Reaction
+                🤍 Thích
               </button>
               <button
                 type="button"
