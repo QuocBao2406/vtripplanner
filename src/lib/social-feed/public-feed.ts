@@ -50,6 +50,7 @@ export type PublicSocialFeedPost = {
   media: PublicSocialFeedMedia[];
   sourceTrip: PublicSocialFeedTripSummary | null;
   viewerReaction: ViewerReactionType | null;
+  viewerSaved: boolean;
   places: Array<{
     id: string;
     name: string;
@@ -305,6 +306,30 @@ export async function getPublicSocialFeed(
       ]),
     );
 
+  const viewerSaves =
+    currentUser && posts.length > 0
+      ? await prisma.travelPostSave.findMany({
+          where: {
+            userId: currentUser.id,
+            postId: {
+              in: posts.map(
+                (post) => post.id,
+              ),
+            },
+          },
+          select: {
+            postId: true,
+          },
+        })
+      : [];
+
+  const viewerSavedPostIds =
+    new Set(
+      viewerSaves.map(
+        (savedPost) => savedPost.postId,
+      ),
+    );
+
   return {
     currentMonth,
     posts: posts.map((post) => {
@@ -444,6 +469,10 @@ export async function getPublicSocialFeed(
           viewerReactionByPostId.get(
             post.id,
           ) ?? null,
+        viewerSaved:
+          viewerSavedPostIds.has(
+            post.id,
+          ),
         places: post.places.map(
           (placeLink) => ({
             id: placeLink.place.id,

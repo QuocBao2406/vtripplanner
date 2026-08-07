@@ -223,6 +223,7 @@ model User {
   travelPosts                 TravelPost[]         @relation("TravelPostAuthor")
   travelPostReactions         TravelPostReaction[]
   travelPostComments          TravelPostComment[]
+  travelPostSaves             TravelPostSave[]
   auditLogs                   AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
@@ -1272,6 +1273,7 @@ model TravelPost {
   places     TravelPostPlace[]
   reactions  TravelPostReaction[]
   comments   TravelPostComment[]
+  saves      TravelPostSave[]
 
   @@index([authorUserId, createdAt])
   @@index([status, publishedAt])
@@ -1352,4 +1354,18 @@ model TravelPostComment {
   @@index([userId, createdAt])
   @@index([deletedAt])
   @@map("travel_post_comments")
+}
+
+model TravelPostSave {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  post TravelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+  @@map("travel_post_saves")
 }

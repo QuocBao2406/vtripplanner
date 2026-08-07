@@ -222,6 +222,9 @@ export function SocialFeed({
             initialViewerReaction={
               post.viewerReaction
             }
+            initialViewerSaved={
+              post.viewerSaved
+            }
             commentCount={
               post.commentCount
             }

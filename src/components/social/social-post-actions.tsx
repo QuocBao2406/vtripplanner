@@ -10,6 +10,7 @@ type SocialPostActionsProps = {
   postId: string;
   initialReactionCount: number;
   initialViewerReaction: ReactionType | null;
+  initialViewerSaved: boolean;
   commentCount: number;
 };
 
@@ -17,6 +18,12 @@ type ReactionResponse = {
   ok?: boolean;
   reactionType?: ReactionType | null;
   reactionCount?: number;
+  message?: string;
+};
+
+type SaveResponse = {
+  ok?: boolean;
+  saved?: boolean;
   message?: string;
 };
 
@@ -53,6 +60,7 @@ export function SocialPostActions({
   postId,
   initialReactionCount,
   initialViewerReaction,
+  initialViewerSaved,
   commentCount: initialCommentCount,
 }: SocialPostActionsProps) {
   const [reactionType, setReactionType] =
@@ -61,10 +69,14 @@ export function SocialPostActions({
     useState(initialReactionCount);
   const [commentCount, setCommentCount] =
     useState(initialCommentCount);
+  const [isSaved, setIsSaved] =
+    useState(initialViewerSaved);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] =
     useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaveSubmitting, setIsSaveSubmitting] =
+    useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   async function readPayload(
@@ -77,12 +89,24 @@ export function SocialPostActions({
     }
   }
 
+  async function readSavePayload(
+    response: Response,
+  ): Promise<SaveResponse> {
+    try {
+      return (await response.json()) as SaveResponse;
+    } catch {
+      return {};
+    }
+  }
+
   function handleAuthenticationFailure(
     response: Response,
+    loginMessage =
+      "Vui lòng đăng nhập để thả cảm xúc.",
   ): boolean {
     if (response.status === 401) {
       const message = encodeURIComponent(
-        "Vui lòng đăng nhập để thả cảm xúc.",
+        loginMessage,
       );
 
       window.location.href =
@@ -219,6 +243,64 @@ export function SocialPostActions({
     await saveReaction("LIKE");
   }
 
+  async function toggleSave() {
+    if (isSaveSubmitting) {
+      return;
+    }
+
+    setIsSaveSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(
+        "/api/social/saves",
+        {
+          method: isSaved
+            ? "DELETE"
+            : "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            postId,
+          }),
+        },
+      );
+
+      if (
+        handleAuthenticationFailure(
+          response,
+          "Vui lòng đăng nhập để lưu bài viết.",
+        )
+      ) {
+        return;
+      }
+
+      const payload =
+        await readSavePayload(response);
+
+      if (
+        !response.ok ||
+        typeof payload.saved !== "boolean"
+      ) {
+        setErrorMessage(
+          payload.message ??
+            "Không thể cập nhật bài viết đã lưu. Vui lòng thử lại.",
+        );
+        return;
+      }
+
+      setIsSaved(payload.saved);
+    } catch {
+      setErrorMessage(
+        "Không thể kết nối để lưu bài viết. Vui lòng thử lại.",
+      );
+    } finally {
+      setIsSaveSubmitting(false);
+    }
+  }
+
   const activeReaction = reactionType
     ? REACTION_META[reactionType]
     : null;
@@ -245,7 +327,7 @@ export function SocialPostActions({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 py-2">
+      <div className="grid grid-cols-3 gap-2 py-2">
         <div className="relative flex rounded-xl transition hover:bg-slate-50">
           <button
             type="button"
@@ -330,6 +412,22 @@ export function SocialPostActions({
           }`}
         >
           💬 Bình luận
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleSave}
+          disabled={isSaveSubmitting}
+          aria-pressed={isSaved}
+          className={`rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 ${
+            isSaved
+              ? "bg-emerald-50 text-emerald-700"
+              : "text-slate-600"
+          }`}
+        >
+          {isSaved
+            ? "🔖 Đã lưu"
+            : "🔖 Lưu"}
         </button>
       </div>
 

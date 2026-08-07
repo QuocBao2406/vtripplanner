@@ -197,6 +197,15 @@ export async function getMyPublishedSocialPosts(
             type: true,
           },
         },
+        saves: {
+          where: {
+            userId,
+          },
+          take: 1,
+          select: {
+            id: true,
+          },
+        },
         _count: {
           select: {
             reactions: true,
@@ -344,6 +353,8 @@ export async function getMyPublishedSocialPosts(
           | ViewerReactionType
           | undefined) ??
         null,
+      viewerSaved:
+        post.saves.length > 0,
       places: post.places.map(
         (placeLink) => ({
           id: placeLink.place.id,
