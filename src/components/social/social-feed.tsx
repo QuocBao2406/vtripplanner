@@ -1,3 +1,4 @@
+import { SocialPostActions } from "@/components/social/social-post-actions";
 import type { PublicSocialFeedPost } from "@/lib/social-feed/public-feed";
 
 type SocialFeedProps = {
@@ -128,7 +129,7 @@ export function SocialFeed({
             </div>
           </div>
 
-          {(post.headline || post.caption) ? (
+          {post.headline || post.caption ? (
             <div className="px-4 pb-4 sm:px-5">
               {post.headline ? (
                 <h3 className="text-lg font-semibold leading-7 text-slate-950 sm:text-xl">
@@ -167,39 +168,12 @@ export function SocialFeed({
             </div>
           ) : null}
 
-          <div className="px-4 pt-4 sm:px-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs text-slate-500">
-              <span>
-                {post.reactionCount > 0
-                  ? `💚 ${post.reactionCount}`
-                  : "Chưa có reaction"}
-              </span>
-              <span>
-                {post.commentCount > 0
-                  ? `${post.commentCount} bình luận`
-                  : "Chưa có bình luận"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 py-2">
-              <button
-                type="button"
-                disabled
-                title="Reaction sẽ được kết nối ở bước tiếp theo"
-                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600"
-              >
-                🤍 Thích
-              </button>
-              <button
-                type="button"
-                disabled
-                title="Comment sẽ được kết nối ở bước tiếp theo"
-                className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600"
-              >
-                💬 Bình luận
-              </button>
-            </div>
-          </div>
+          <SocialPostActions
+            postId={post.id}
+            initialReactionCount={post.reactionCount}
+            initialViewerReaction={post.viewerReaction}
+            commentCount={post.commentCount}
+          />
         </article>
       ))}
     </div>

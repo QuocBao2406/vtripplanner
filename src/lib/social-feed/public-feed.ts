@@ -1,8 +1,11 @@
+import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
 
 const PLACE_IMAGE_BUCKET = "place-images";
 const TRAVEL_POST_MEDIA_BUCKET = "travel-post-media";
 const MAX_FEED_POSTS = 20;
+
+type ViewerReactionType = "LIKE" | "LOVE" | "WOW";
 
 export type PublicSocialFeedPost = {
   id: string;
@@ -18,6 +21,7 @@ export type PublicSocialFeedPost = {
   coverImageAlt: string;
   mediaType: "IMAGE" | "VIDEO" | null;
   mediaMimeType: string | null;
+  viewerReaction: ViewerReactionType | null;
   places: Array<{
     id: string;
     name: string;
@@ -88,6 +92,7 @@ export async function getPublicSocialFeed(
   requestedMonth: number,
 ): Promise<PublicSocialFeed> {
   const currentMonth = normalizeMonth(requestedMonth);
+  const currentUser = await getCurrentUser();
 
   const posts = await prisma.travelPost.findMany({
     where: {
@@ -199,6 +204,29 @@ export async function getPublicSocialFeed(
     },
   });
 
+  const viewerReactions =
+    currentUser && posts.length > 0
+      ? await prisma.travelPostReaction.findMany({
+          where: {
+            userId: currentUser.id,
+            postId: {
+              in: posts.map((post) => post.id),
+            },
+          },
+          select: {
+            postId: true,
+            type: true,
+          },
+        })
+      : [];
+
+  const viewerReactionByPostId = new Map(
+    viewerReactions.map((reaction) => [
+      reaction.postId,
+      reaction.type as ViewerReactionType,
+    ]),
+  );
+
   return {
     currentMonth,
     posts: posts.map((post) => {
@@ -247,6 +275,8 @@ export async function getPublicSocialFeed(
           : placeFallbackUrl
             ? "image/*"
             : null,
+        viewerReaction:
+          viewerReactionByPostId.get(post.id) ?? null,
         places: post.places.map((placeLink) => ({
           id: placeLink.place.id,
           name: placeLink.place.name,
