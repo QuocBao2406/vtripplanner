@@ -359,6 +359,13 @@ export function TripPlannerLauncher() {
         >
           Xem cộng đồng ↓
         </a>
+
+        <a
+          href="/chuyen-di-cua-toi"
+          className="rounded-2xl border border-white/15 bg-slate-950/25 px-5 py-3 text-sm font-medium text-slate-100 backdrop-blur transition hover:bg-white/10"
+        >
+          🧳 Chuyến đi của tôi
+        </a>
       </div>
 
       {isOpen ? (
