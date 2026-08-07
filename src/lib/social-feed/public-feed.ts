@@ -1,10 +1,18 @@
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
+import {
+  getReactionInterestSignals,
+  type TripReactionInterestSignals,
+} from "@/lib/trip-planner/reaction-interest-signals";
 
 const PLACE_IMAGE_BUCKET = "place-images";
 const TRAVEL_POST_MEDIA_BUCKET = "travel-post-media";
 const MAX_FEED_POSTS = 20;
+const MAX_FEED_CANDIDATES = 60;
 const MAX_FEED_MEDIA = 10;
+const SEASONAL_GUIDE_BOOST = 12;
+const MAX_PERSONALIZATION_BOOST = 10;
+const MAX_PERSONALIZED_STREAK = 3;
 
 type ViewerReactionType =
   | "LIKE"
@@ -65,6 +73,262 @@ export type PublicSocialFeed = {
   currentMonth: number;
   posts: PublicSocialFeedPost[];
 };
+
+type FeedRankingCandidate = {
+  id: string;
+  type: PublicSocialFeedPost["type"];
+  seasonMonths: number[];
+  publishedAt: Date | null;
+  createdAt: Date;
+  places: Array<{
+    place: {
+      id: string;
+    };
+  }>;
+};
+
+type RankedFeedCandidate<T extends FeedRankingCandidate> = {
+  post: T;
+  baseScore: number;
+  personalizationBoost: number;
+  totalScore: number;
+  publishedAtMs: number;
+};
+
+function getRecencyBoost(
+  publishedAt: Date,
+): number {
+  const ageMilliseconds = Math.max(
+    0,
+    Date.now() - publishedAt.getTime(),
+  );
+  const ageDays =
+    ageMilliseconds /
+    (1000 * 60 * 60 * 24);
+
+  if (ageDays <= 7) {
+    return 6;
+  }
+
+  if (ageDays <= 30) {
+    return 4;
+  }
+
+  if (ageDays <= 90) {
+    return 2;
+  }
+
+  return 0;
+}
+
+function getSeasonalBoost(
+  post: FeedRankingCandidate,
+  currentMonth: number,
+): number {
+  if (
+    post.type === "SEASONAL_GUIDE" &&
+    post.seasonMonths.includes(
+      currentMonth,
+    )
+  ) {
+    return SEASONAL_GUIDE_BOOST;
+  }
+
+  return 0;
+}
+
+function getPersonalizationBoost(
+  post: FeedRankingCandidate,
+  signals: TripReactionInterestSignals | null,
+): number {
+  if (!signals) {
+    return 0;
+  }
+
+  const reactionScoreByPlaceId =
+    new Map(
+      signals.topPlaces.map(
+        (signal) => [
+          signal.placeId,
+          signal.score,
+        ],
+      ),
+    );
+
+  const savedCountByPlaceId =
+    new Map(
+      signals.topSavedPlaces.map(
+        (signal) => [
+          signal.placeId,
+          signal.saveCount,
+        ],
+      ),
+    );
+
+  const uniquePlaceIds = new Set(
+    post.places.map(
+      (placeLink) =>
+        placeLink.place.id,
+    ),
+  );
+
+  let reactionBoost = 0;
+  let savedBoost = 0;
+
+  for (const placeId of uniquePlaceIds) {
+    const reactionScore =
+      reactionScoreByPlaceId.get(
+        placeId,
+      ) ?? 0;
+    const saveCount =
+      savedCountByPlaceId.get(
+        placeId,
+      ) ?? 0;
+
+    if (reactionScore > 0) {
+      reactionBoost += Math.min(
+        6,
+        reactionScore * 2,
+      );
+    }
+
+    if (saveCount > 0) {
+      savedBoost += Math.min(
+        6,
+        saveCount * 3,
+      );
+    }
+  }
+
+  return Math.min(
+    MAX_PERSONALIZATION_BOOST,
+    reactionBoost + savedBoost,
+  );
+}
+
+function rankFeedCandidates<
+  T extends FeedRankingCandidate,
+>(
+  posts: T[],
+  currentMonth: number,
+  signals: TripReactionInterestSignals | null,
+): T[] {
+  const ranked: RankedFeedCandidate<T>[] =
+    posts
+      .map((post) => {
+        const publishedAt =
+          post.publishedAt ??
+          post.createdAt;
+        const seasonalBoost =
+          getSeasonalBoost(
+            post,
+            currentMonth,
+          );
+        const recencyBoost =
+          getRecencyBoost(
+            publishedAt,
+          );
+        const baseScore =
+          seasonalBoost +
+          recencyBoost;
+        const personalizationBoost =
+          getPersonalizationBoost(
+            post,
+            signals,
+          );
+
+        return {
+          post,
+          baseScore,
+          personalizationBoost,
+          totalScore:
+            baseScore +
+            personalizationBoost,
+          publishedAtMs:
+            publishedAt.getTime(),
+        };
+      })
+      .sort(
+        (left, right) =>
+          right.totalScore -
+            left.totalScore ||
+          right.baseScore -
+            left.baseScore ||
+          right.personalizationBoost -
+            left.personalizationBoost ||
+          right.publishedAtMs -
+            left.publishedAtMs ||
+          left.post.id.localeCompare(
+            right.post.id,
+          ),
+      );
+
+  const hasBehaviorSignals =
+    Boolean(
+      signals &&
+        (
+          signals.reactionCount > 0 ||
+          signals.saveCount > 0
+        ),
+    );
+
+  if (!hasBehaviorSignals) {
+    return ranked
+      .slice(0, MAX_FEED_POSTS)
+      .map((item) => item.post);
+  }
+
+  const remaining = [...ranked];
+  const selected: T[] = [];
+  let personalizedStreak = 0;
+
+  while (
+    remaining.length > 0 &&
+    selected.length < MAX_FEED_POSTS
+  ) {
+    let selectedIndex = 0;
+
+    if (
+      personalizedStreak >=
+      MAX_PERSONALIZED_STREAK
+    ) {
+      const explorationIndex =
+        remaining.findIndex(
+          (item) =>
+            item.personalizationBoost ===
+            0,
+        );
+
+      if (explorationIndex >= 0) {
+        selectedIndex =
+          explorationIndex;
+      }
+    }
+
+    const nextItem =
+      remaining.splice(
+        selectedIndex,
+        1,
+      )[0];
+
+    if (!nextItem) {
+      break;
+    }
+
+    selected.push(nextItem.post);
+
+    if (
+      nextItem.personalizationBoost >
+      0
+    ) {
+      personalizedStreak += 1;
+    } else {
+      personalizedStreak = 0;
+    }
+  }
+
+  return selected;
+}
 
 function getPublicStorageUrl(
   bucketName: string,
@@ -143,8 +407,11 @@ export async function getPublicSocialFeed(
   const currentUser =
     await getCurrentUser();
 
-  const posts =
-    await prisma.travelPost.findMany({
+  const [
+    candidatePosts,
+    personalizationSignals,
+  ] = await Promise.all([
+    prisma.travelPost.findMany({
       where: {
         status: "PUBLISHED",
         deletedAt: null,
@@ -169,7 +436,9 @@ export async function getPublicSocialFeed(
           createdAt: "desc",
         },
       ],
-      take: MAX_FEED_POSTS,
+      take: currentUser
+        ? MAX_FEED_CANDIDATES
+        : MAX_FEED_POSTS,
       select: {
         id: true,
         type: true,
@@ -278,7 +547,19 @@ export async function getPublicSocialFeed(
           },
         },
       },
-    });
+    }),
+    currentUser
+      ? getReactionInterestSignals(
+          currentUser.id,
+        )
+      : Promise.resolve(null),
+  ]);
+
+  const posts = rankFeedCandidates(
+    candidatePosts,
+    currentMonth,
+    personalizationSignals,
+  );
 
   const viewerReactions =
     currentUser && posts.length > 0
