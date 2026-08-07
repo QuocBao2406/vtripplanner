@@ -42,6 +42,7 @@ export type PublicSocialFeedPost = {
   sourceName: string;
   sourceAvatarUrl: string | null;
   isSystemPost: boolean;
+  viewerCanManage: boolean;
   coverImageUrl: string | null;
   coverImageAlt: string;
   mediaType: "IMAGE" | "VIDEO" | null;
@@ -178,6 +179,7 @@ export async function getPublicSocialFeed(
         createdAt: true,
         author: {
           select: {
+            id: true,
             profile: {
               select: {
                 displayName: true,
@@ -410,6 +412,9 @@ export async function getPublicSocialFeed(
           authorProfile?.avatarUrl ?? null,
         isSystemPost:
           post.author === null,
+        viewerCanManage:
+          post.type === "USER_TRIP" &&
+          currentUser?.id === post.author?.id,
         coverImageUrl:
           coverMedia?.url ?? null,
         coverImageAlt:

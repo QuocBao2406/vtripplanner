@@ -1,5 +1,6 @@
 import { SocialPostMediaGallery } from "@/components/social/social-post-media-gallery";
 import { SocialPostActions } from "@/components/social/social-post-actions";
+import { SocialPostOwnerActions } from "@/components/social/social-post-owner-actions";
 import type { PublicSocialFeedPost } from "@/lib/social-feed/public-feed";
 
 type SocialFeedProps = {
@@ -157,6 +158,15 @@ export function SocialFeed({
                 </span>
               </div>
             </div>
+
+            {post.viewerCanManage ? (
+              <SocialPostOwnerActions
+                postId={post.id}
+                initialCaption={
+                  post.caption ?? ""
+                }
+              />
+            ) : null}
           </div>
 
           {post.headline || post.caption ? (
