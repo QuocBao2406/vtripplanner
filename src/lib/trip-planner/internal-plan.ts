@@ -7,6 +7,8 @@ import {
 const PLACE_IMAGE_BUCKET = "place-images";
 const MAX_PLANNER_PLACES = 200;
 const MAX_DURATION_DAYS = 7;
+const SAVED_PLACE_BOOST_PER_POST = 3;
+const MAX_SAVED_PLACE_BOOST = 6;
 
 export type InternalTripBudget =
   | "ECONOMY"
@@ -63,8 +65,11 @@ export type InternalTripPlan = {
   personalization: {
     applied: boolean;
     reactionCount: number;
+    saveCount: number;
     matchedPlaceCount: number;
+    matchedSavedPlaceCount: number;
     preferredMonths: number[];
+    savedPreferredMonths: number[];
   };
   scoringGuide: string[];
   days: InternalTripPlanDay[];
@@ -121,6 +126,8 @@ type ScoredPlannerPlace = PlannerPlace & {
   score: number;
   reasons: string[];
   reactionScore: number;
+  savedPostCount: number;
+  savedBoost: number;
 };
 
 const SLOT_DEFINITIONS = [
@@ -569,6 +576,15 @@ function scorePlaces(
     ) ?? [],
   );
 
+  const savedPostCountByPlaceId = new Map(
+    reactionSignals?.topSavedPlaces.map(
+      (signal) => [
+        signal.placeId,
+        signal.saveCount,
+      ],
+    ) ?? [],
+  );
+
   return places
     .map((place) => {
       let score = 10;
@@ -618,6 +634,22 @@ function scorePlaces(
         );
       }
 
+      const savedPostCount =
+        savedPostCountByPlaceId.get(place.id) ?? 0;
+      const savedBoost =
+        Math.min(
+          MAX_SAVED_PLACE_BOOST,
+          savedPostCount *
+            SAVED_PLACE_BOOST_PER_POST,
+        );
+
+      if (savedBoost > 0) {
+        score += savedBoost;
+        reasons.push(
+          `🔖 Bạn đã lưu bài viết liên quan (+${savedBoost})`,
+        );
+      }
+
       const budgetResult = getBudgetScore(
         request.budget,
         place.entryPrice,
@@ -640,11 +672,15 @@ function scorePlaces(
         score,
         reasons,
         reactionScore,
+        savedPostCount,
+        savedBoost,
       };
     })
     .sort(
       (left, right) =>
         right.score - left.score ||
+        right.savedBoost -
+          left.savedBoost ||
         right.reactionScore -
           left.reactionScore ||
         left.entryPrice -
@@ -1030,8 +1066,12 @@ function getEmptyReactionSignals():
       LOVE: 0,
       WOW: 0,
     },
+    saveCount: 0,
+    savedSignalPostCount: 0,
     topPlaces: [],
     preferredMonths: [],
+    topSavedPlaces: [],
+    savedPreferredMonths: [],
     promptContext: null,
   };
 }
@@ -1131,6 +1171,11 @@ export async function buildInternalTripPlan(
       (place) => place.reactionScore > 0,
     ).length;
 
+  const matchedSavedPlaceCount =
+    scoredPlaces.filter(
+      (place) => place.savedBoost > 0,
+    ).length;
+
   const estimatedEntryFees =
     scheduledActivities.reduce(
       (total, activity) =>
@@ -1155,13 +1200,23 @@ export async function buildInternalTripPlan(
       personalization: {
         applied:
           userId !== null &&
-          reactionSignals.reactionCount > 0,
+          (
+            reactionSignals.reactionCount > 0 ||
+            reactionSignals.saveCount > 0
+          ),
         reactionCount:
           reactionSignals.reactionCount,
+        saveCount:
+          reactionSignals.saveCount,
         matchedPlaceCount:
           matchedReactionPlaceCount,
+        matchedSavedPlaceCount,
         preferredMonths:
           reactionSignals.preferredMonths.map(
+            (signal) => signal.month,
+          ),
+        savedPreferredMonths:
+          reactionSignals.savedPreferredMonths.map(
             (signal) => signal.month,
           ),
       },
@@ -1169,6 +1224,7 @@ export async function buildInternalTripPlan(
         "Sở thích khớp nhóm địa điểm: cộng điểm.",
         "Đúng bestVisitMonths: cộng điểm mùa.",
         "Reaction: LIKE = 1, WOW = 2, LOVE = 3 rồi tăng trọng số địa điểm.",
+        "Bài viết đã lưu: +3 mỗi bài liên quan, tối đa +6 điểm cho mỗi địa điểm để không lấn át các yếu tố khác.",
         "Ngân sách dùng giá tham quan đang có trong database để ưu tiên tương đối.",
         "Khung giờ chỉ chọn địa điểm đang mở theo dữ liệu openingHours; các điểm trong cùng ngày được ưu tiên gần nhau khi có tọa độ.",
       ],
