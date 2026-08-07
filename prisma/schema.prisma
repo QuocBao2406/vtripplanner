@@ -220,6 +220,9 @@ model User {
   receivedNotifications       Notification[]       @relation("NotificationRecipient")
   triggeredNotifications      Notification[]       @relation("NotificationActor")
   userInteractions            UserInteraction[]
+  travelPosts                 TravelPost[]         @relation("TravelPostAuthor")
+  travelPostReactions         TravelPostReaction[]
+  travelPostComments          TravelPostComment[]
   auditLogs                   AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
@@ -498,6 +501,7 @@ model Place {
   savedInTrips     TripSavedPlace[]
   reviews          PlaceReview[]
   userInteractions UserInteraction[]
+  travelPostLinks  TravelPostPlace[]
 
   @@index([partnerId])
   @@index([partnerBranchId])
@@ -1216,4 +1220,132 @@ model UserInteraction {
   @@index([userId, createdAt])
   @@index([placeId, type, createdAt])
   @@map("user_interactions")
+}
+
+enum TravelPostType {
+  USER_TRIP
+  SEASONAL_GUIDE
+  EVERGREEN_GUIDE
+  PROMOTED
+}
+
+enum TravelPostStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+enum TravelPostMediaType {
+  IMAGE
+  VIDEO
+}
+
+enum TravelPostReactionType {
+  LIKE
+  LOVE
+  WOW
+}
+
+enum TravelPostCommentStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+model TravelPost {
+  id           String           @id @default(uuid()) @db.Uuid
+  authorUserId String?          @db.Uuid
+  type         TravelPostType   @default(USER_TRIP)
+  status       TravelPostStatus @default(DRAFT)
+  headline     String?          @db.VarChar(220)
+  caption      String?          @db.VarChar(5000)
+  seasonMonths Int[]            @default([])
+  publishedAt  DateTime?        @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(6)
+  deletedAt    DateTime?        @db.Timestamptz(6)
+
+  author    User?                @relation("TravelPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  media     TravelPostMedia[]
+  places    TravelPostPlace[]
+  reactions TravelPostReaction[]
+  comments  TravelPostComment[]
+
+  @@index([authorUserId, createdAt])
+  @@index([status, publishedAt])
+  @@index([type, status, publishedAt])
+  @@index([deletedAt])
+  @@map("travel_posts")
+}
+
+model TravelPostMedia {
+  id              String              @id @default(uuid()) @db.Uuid
+  postId          String              @db.Uuid
+  type            TravelPostMediaType
+  storagePath     String              @db.VarChar(1024)
+  mimeType        String?             @db.VarChar(100)
+  fileSizeBytes   Int?
+  durationSeconds Int?
+  altText         String?             @db.VarChar(255)
+  sortOrder       Int                 @default(0)
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+
+  post TravelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, sortOrder])
+  @@index([type])
+  @@map("travel_post_media")
+}
+
+model TravelPostPlace {
+  postId    String   @db.Uuid
+  placeId   String   @db.Uuid
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  post  TravelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  place Place      @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@id([postId, placeId])
+  @@index([postId, sortOrder])
+  @@index([placeId])
+  @@index([placeId, isPrimary])
+  @@map("travel_post_places")
+}
+
+model TravelPostReaction {
+  id        String                 @id @default(uuid()) @db.Uuid
+  postId    String                 @db.Uuid
+  userId    String                 @db.Uuid
+  type      TravelPostReactionType @default(LIKE)
+  createdAt DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime               @updatedAt @db.Timestamptz(6)
+
+  post TravelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId, type, createdAt])
+  @@index([userId, createdAt])
+  @@map("travel_post_reactions")
+}
+
+model TravelPostComment {
+  id             String                  @id @default(uuid()) @db.Uuid
+  postId         String                  @db.Uuid
+  userId         String                  @db.Uuid
+  content        String                  @db.VarChar(2000)
+  status         TravelPostCommentStatus @default(PUBLISHED)
+  moderationNote String?                 @db.VarChar(500)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                @updatedAt @db.Timestamptz(6)
+  deletedAt      DateTime?               @db.Timestamptz(6)
+
+  post TravelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, status, createdAt])
+  @@index([userId, createdAt])
+  @@index([deletedAt])
+  @@map("travel_post_comments")
 }
