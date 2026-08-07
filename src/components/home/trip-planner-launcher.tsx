@@ -74,6 +74,18 @@ type PlanApiResponse = {
   availableDestinations?: string[];
 };
 
+type SaveTripApiResponse = {
+  ok?: boolean;
+  savedTrip?: {
+    id: string;
+    title: string;
+    status: string;
+    dayCount: number;
+    activityCount: number;
+  };
+  message?: string;
+};
+
 const BUDGET_LABELS: Record<
   BudgetLevel,
   string
@@ -151,6 +163,12 @@ export function TripPlannerLauncher() {
   ] = useState<string[]>([]);
   const [plan, setPlan] =
     useState<TripPlan | null>(null);
+  const [isSaving, setIsSaving] =
+    useState(false);
+  const [savedTripId, setSavedTripId] =
+    useState<string | null>(null);
+  const [saveMessage, setSaveMessage] =
+    useState("");
 
   function toggleInterest(
     interest: string,
@@ -184,6 +202,8 @@ export function TripPlannerLauncher() {
     setIsSubmitting(true);
     setErrorMessage("");
     setAvailableDestinations([]);
+    setSavedTripId(null);
+    setSaveMessage("");
 
     try {
       const response = await fetch(
@@ -231,6 +251,91 @@ export function TripPlannerLauncher() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleSavePlan() {
+    if (!plan || isSaving || savedTripId) {
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage("");
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(
+        "/api/trip-planner/save",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            destination:
+              plan.destination,
+            startDate:
+              plan.startDate,
+            duration:
+              plan.duration,
+            budget:
+              plan.budget,
+            interests:
+              plan.interests,
+          }),
+        },
+      );
+
+      if (response.status === 401) {
+        const message = encodeURIComponent(
+          "Vui lòng đăng nhập, sau đó tạo lại lịch trình để lưu chuyến đi.",
+        );
+
+        window.location.href =
+          `/dang-nhap?message=${message}`;
+
+        return;
+      }
+
+      if (response.status === 403) {
+        window.location.href =
+          "/khong-co-quyen?reason=inactive";
+        return;
+      }
+
+      let payload: SaveTripApiResponse = {};
+
+      try {
+        payload =
+          (await response.json()) as SaveTripApiResponse;
+      } catch {
+        payload = {};
+      }
+
+      if (
+        !response.ok ||
+        !payload.savedTrip
+      ) {
+        setSaveMessage(
+          payload.message ??
+            "Không thể lưu chuyến đi. Vui lòng thử lại.",
+        );
+        return;
+      }
+
+      setSavedTripId(
+        payload.savedTrip.id,
+      );
+      setSaveMessage(
+        `Đã lưu "${payload.savedTrip.title}" với ${payload.savedTrip.dayCount} ngày và ${payload.savedTrip.activityCount} hoạt động.`,
+      );
+    } catch {
+      setSaveMessage(
+        "Không thể kết nối để lưu chuyến đi. Vui lòng thử lại.",
+      );
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -432,7 +537,7 @@ export function TripPlannerLauncher() {
               </button>
 
               <p className="text-xs leading-5 text-slate-400">
-                Chưa lưu chuyến đi vào tài khoản ở bước này.
+                Preview chỉ được lưu khi bạn bấm “Lưu chuyến đi”.
               </p>
             </div>
           </form>
@@ -529,6 +634,45 @@ export function TripPlannerLauncher() {
                     </span>
                   ) : null}
                 </div>
+              </div>
+
+              <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSavePlan}
+                    disabled={
+                      isSaving ||
+                      Boolean(savedTripId)
+                    }
+                    className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {savedTripId
+                      ? "✓ Đã lưu chuyến đi"
+                      : isSaving
+                        ? "Đang lưu..."
+                        : "💾 Lưu chuyến đi"}
+                  </button>
+
+                  <p className="text-xs leading-5 text-slate-500">
+                    {savedTripId
+                      ? "Chuyến đi đã được ghi vào tài khoản của bạn."
+                      : "Chỉ lưu khi bạn chủ động chọn; tạo preview không tự sinh dữ liệu Trip."}
+                  </p>
+                </div>
+
+                {saveMessage ? (
+                  <p
+                    role="status"
+                    className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium ${
+                      savedTripId
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {saveMessage}
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-5 p-4 sm:p-6">
