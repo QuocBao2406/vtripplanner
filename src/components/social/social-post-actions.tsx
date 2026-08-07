@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { SocialPostComments } from "@/components/social/social-post-comments";
+
 type ReactionType = "LIKE" | "LOVE" | "WOW";
 
 type SocialPostActionsProps = {
@@ -51,13 +53,17 @@ export function SocialPostActions({
   postId,
   initialReactionCount,
   initialViewerReaction,
-  commentCount,
+  commentCount: initialCommentCount,
 }: SocialPostActionsProps) {
   const [reactionType, setReactionType] =
     useState<ReactionType | null>(initialViewerReaction);
   const [reactionCount, setReactionCount] =
     useState(initialReactionCount);
+  const [commentCount, setCommentCount] =
+    useState(initialCommentCount);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCommentsOpen, setIsCommentsOpen] =
+    useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -71,18 +77,24 @@ export function SocialPostActions({
     }
   }
 
-  function handleAuthenticationFailure(response: Response): boolean {
+  function handleAuthenticationFailure(
+    response: Response,
+  ): boolean {
     if (response.status === 401) {
       const message = encodeURIComponent(
         "Vui lòng đăng nhập để thả cảm xúc.",
       );
 
-      window.location.href = `/dang-nhap?message=${message}`;
+      window.location.href =
+        `/dang-nhap?message=${message}`;
+
       return true;
     }
 
     if (response.status === 403) {
-      window.location.href = "/khong-co-quyen?reason=inactive";
+      window.location.href =
+        "/khong-co-quyen?reason=inactive";
+
       return true;
     }
 
@@ -103,16 +115,19 @@ export function SocialPostActions({
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/social/reactions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "/api/social/reactions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            postId,
+            type,
+          }),
         },
-        body: JSON.stringify({
-          postId,
-          type,
-        }),
-      });
+      );
 
       if (handleAuthenticationFailure(response)) {
         return;
@@ -153,15 +168,18 @@ export function SocialPostActions({
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/social/reactions", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        "/api/social/reactions",
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            postId,
+          }),
         },
-        body: JSON.stringify({
-          postId,
-        }),
-      });
+      );
 
       if (handleAuthenticationFailure(response)) {
         return;
@@ -214,11 +232,17 @@ export function SocialPostActions({
             : "Chưa có reaction"}
         </span>
 
-        <span>
+        <button
+          type="button"
+          onClick={() =>
+            setIsCommentsOpen((current) => !current)
+          }
+          className="rounded-lg px-1 py-0.5 transition hover:bg-slate-50 hover:text-slate-700"
+        >
           {commentCount > 0
             ? `${commentCount} bình luận`
             : "Chưa có bình luận"}
-        </span>
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-2 py-2">
@@ -266,13 +290,16 @@ export function SocialPostActions({
             <div className="absolute bottom-full left-0 z-20 mb-2 flex gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
               {REACTION_OPTIONS.map((type) => {
                 const option = REACTION_META[type];
-                const isSelected = reactionType === type;
+                const isSelected =
+                  reactionType === type;
 
                 return (
                   <button
                     key={type}
                     type="button"
-                    onClick={() => saveReaction(type)}
+                    onClick={() =>
+                      saveReaction(type)
+                    }
                     disabled={isSubmitting}
                     title={option.label}
                     aria-label={option.label}
@@ -292,9 +319,15 @@ export function SocialPostActions({
 
         <button
           type="button"
-          disabled
-          title="Comment sẽ được kết nối ở bước tiếp theo"
-          className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600"
+          onClick={() =>
+            setIsCommentsOpen((current) => !current)
+          }
+          aria-expanded={isCommentsOpen}
+          className={`rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-slate-50 ${
+            isCommentsOpen
+              ? "text-emerald-700"
+              : "text-slate-600"
+          }`}
         >
           💬 Bình luận
         </button>
@@ -307,6 +340,14 @@ export function SocialPostActions({
         >
           {errorMessage}
         </p>
+      ) : null}
+
+      {isCommentsOpen ? (
+        <SocialPostComments
+          postId={postId}
+          initialCommentCount={commentCount}
+          onCommentCountChange={setCommentCount}
+        />
       ) : null}
     </div>
   );
