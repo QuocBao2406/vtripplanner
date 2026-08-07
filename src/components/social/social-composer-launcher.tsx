@@ -3,13 +3,16 @@
 import { useRouter } from "next/navigation";
 import {
   type ChangeEvent,
+  type DragEvent,
   type FormEvent,
+  useEffect,
   useRef,
   useState,
 } from "react";
 
 const MAX_CAPTION_LENGTH = 2000;
 const MAX_MEDIA_BYTES = 6 * 1024 * 1024;
+const MAX_IMAGE_COUNT = 10;
 const ACCEPTED_MEDIA =
   "image/jpeg,image/png,image/webp,video/mp4,video/webm";
 
@@ -21,9 +24,27 @@ const ALLOWED_MEDIA_TYPES = new Set([
   "video/webm",
 ]);
 
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+]);
+
 type Viewer = {
   displayName: string;
   avatarUrl: string | null;
+};
+
+type SavedTripSummary = {
+  id: string;
+  title: string;
+  destinationName: string | null;
+  dayCount: number;
 };
 
 type ApiPayload = {
@@ -31,7 +52,15 @@ type ApiPayload = {
   error?: string;
   message?: string;
   viewer?: Viewer;
+  savedTrips?: SavedTripSummary[];
   postId?: string;
+  sourceTripId?: string | null;
+  mediaCount?: number;
+};
+
+type ViewerContext = {
+  viewer: Viewer;
+  savedTrips: SavedTripSummary[];
 };
 
 function formatFileSize(bytes: number): string {
@@ -49,7 +78,64 @@ function getInitial(name: string): string {
     return "B";
   }
 
-  return normalized.charAt(0).toLocaleUpperCase("vi-VN");
+  return normalized
+    .charAt(0)
+    .toLocaleUpperCase("vi-VN");
+}
+
+async function readPayload(
+  response: Response,
+): Promise<ApiPayload> {
+  try {
+    return (await response.json()) as ApiPayload;
+  } catch {
+    return {};
+  }
+}
+
+function validateMediaFiles(
+  files: File[],
+): string | null {
+  if (files.length === 0) {
+    return "Hãy chọn ảnh hoặc video để đăng.";
+  }
+
+  if (files.length > MAX_IMAGE_COUNT) {
+    return `Mỗi bài đăng tối đa ${MAX_IMAGE_COUNT} ảnh.`;
+  }
+
+  for (const file of files) {
+    if (!ALLOWED_MEDIA_TYPES.has(file.type)) {
+      return "Chỉ hỗ trợ ảnh JPEG, PNG, WebP hoặc video MP4, WebM.";
+    }
+
+    if (file.size > MAX_MEDIA_BYTES) {
+      return "Mỗi ảnh hoặc video phải có dung lượng không quá 6 MB.";
+    }
+  }
+
+  const videoFiles = files.filter((file) =>
+    ALLOWED_VIDEO_TYPES.has(file.type),
+  );
+
+  if (
+    videoFiles.length > 0 &&
+    files.length !== 1
+  ) {
+    return "Video phải được đăng riêng. Không thể trộn video với nhiều ảnh.";
+  }
+
+  if (
+    videoFiles.length === 0 &&
+    files.some(
+      (file) =>
+        !ALLOWED_IMAGE_TYPES.has(file.type),
+    )
+  ) {
+    return "Danh sách ảnh không hợp lệ.";
+  }
+
+  return null;
 }
 
 function Avatar({
@@ -65,65 +151,195 @@ function Avatar({
         aria-label={`Ảnh đại diện của ${viewer.displayName}`}
         role="img"
         className="size-11 shrink-0 rounded-full bg-cover bg-center shadow-sm"
-        style={{ backgroundImage: `url("${viewer.avatarUrl}")` }}
+        style={{
+          backgroundImage: `url("${viewer.avatarUrl}")`,
+        }}
       />
     );
   }
 
   return (
     <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 text-sm font-semibold text-white shadow-sm">
-      {viewer ? getInitial(viewer.displayName) : fallback}
+      {viewer
+        ? getInitial(viewer.displayName)
+        : fallback}
     </div>
   );
 }
 
 export function SocialComposerLauncher() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef =
+    useRef<HTMLInputElement>(null);
+  const shareTripHandledRef =
+    useRef(false);
 
-  const [viewer, setViewer] = useState<Viewer | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [caption, setCaption] = useState("");
-  const [selectedMedia, setSelectedMedia] = useState<File | null>(null);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [viewer, setViewer] =
+    useState<Viewer | null>(null);
+  const [savedTrips, setSavedTrips] =
+    useState<SavedTripSummary[]>([]);
+  const [viewerContextLoaded, setViewerContextLoaded] =
+    useState(false);
+  const [isOpen, setIsOpen] =
+    useState(false);
+  const [isCheckingSession, setIsCheckingSession] =
+    useState(false);
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+  const [caption, setCaption] =
+    useState("");
+  const [selectedMedia, setSelectedMedia] =
+    useState<File[]>([]);
+  const [selectedTripId, setSelectedTripId] =
+    useState("");
+  const [errorMessage, setErrorMessage] =
+    useState("");
+  const [successMessage, setSuccessMessage] =
+    useState("");
 
-  async function readPayload(response: Response): Promise<ApiPayload> {
-    try {
-      return (await response.json()) as ApiPayload;
-    } catch {
-      return {};
+  useEffect(() => {
+    if (shareTripHandledRef.current) {
+      return;
     }
-  }
 
-  async function ensureViewer(): Promise<Viewer | null> {
-    if (viewer) {
-      return viewer;
+    const searchParams = new URLSearchParams(
+      window.location.search,
+    );
+    const shareTripId =
+      searchParams.get("shareTrip");
+
+    if (!shareTripId) {
+      return;
+    }
+
+    shareTripHandledRef.current = true;
+
+    async function loadSharedTripComposer() {
+      setSuccessMessage("");
+      setIsCheckingSession(true);
+      setErrorMessage("");
+
+      try {
+        const response = await fetch(
+          "/api/social/posts",
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        );
+
+        const payload =
+          await readPayload(response);
+
+        if (response.status === 401) {
+          const message =
+            encodeURIComponent(
+              "Vui lòng đăng nhập để chia sẻ chuyến đi của bạn.",
+            );
+          window.location.href =
+            `/dang-nhap?message=${message}`;
+          return;
+        }
+
+        if (response.status === 403) {
+          window.location.href =
+            "/khong-co-quyen?reason=inactive";
+          return;
+        }
+
+        if (!response.ok || !payload.viewer) {
+          setErrorMessage(
+            payload.message ??
+              "Không thể kiểm tra tài khoản. Vui lòng thử lại.",
+          );
+          return;
+        }
+
+        const availableTrips =
+          payload.savedTrips ?? [];
+        const selectedTrip =
+          availableTrips.find(
+            (trip) => trip.id === shareTripId,
+          ) ?? null;
+
+        setViewer(payload.viewer);
+        setSavedTrips(availableTrips);
+        setViewerContextLoaded(true);
+        setIsOpen(true);
+
+        if (selectedTrip) {
+          setSelectedTripId(selectedTrip.id);
+          setCaption((current) =>
+            current.trim()
+              ? current
+              : `Mình muốn chia sẻ chuyến đi ${selectedTrip.title} cùng VTripPlanner 🧳`,
+          );
+        } else {
+          setErrorMessage(
+            "Chuyến đi này không còn trong danh sách đã lưu của bạn. Bạn vẫn có thể đăng bài bình thường.",
+          );
+        }
+
+        const nextUrl = new URL(
+          window.location.href,
+        );
+        nextUrl.searchParams.delete(
+          "shareTrip",
+        );
+        nextUrl.hash = "cong-dong";
+
+        window.history.replaceState(
+          null,
+          "",
+          `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`,
+        );
+      } catch {
+        setErrorMessage(
+          "Không thể kết nối để mở chuyến đi. Vui lòng thử lại.",
+        );
+      } finally {
+        setIsCheckingSession(false);
+      }
+    }
+
+    void loadSharedTripComposer();
+  }, []);
+
+  async function ensureViewer(): Promise<ViewerContext | null> {
+    if (viewer && viewerContextLoaded) {
+      return {
+        viewer,
+        savedTrips,
+      };
     }
 
     setIsCheckingSession(true);
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/social/posts", {
-        method: "GET",
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/social/posts",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
-      const payload = await readPayload(response);
+      const payload =
+        await readPayload(response);
 
       if (response.status === 401) {
         const message = encodeURIComponent(
           "Vui lòng đăng nhập để chia sẻ chuyến đi của bạn.",
         );
-        window.location.href = `/dang-nhap?message=${message}`;
+        window.location.href =
+          `/dang-nhap?message=${message}`;
         return null;
       }
 
       if (response.status === 403) {
-        window.location.href = "/khong-co-quyen?reason=inactive";
+        window.location.href =
+          "/khong-co-quyen?reason=inactive";
         return null;
       }
 
@@ -135,8 +351,17 @@ export function SocialComposerLauncher() {
         return null;
       }
 
+      const availableTrips =
+        payload.savedTrips ?? [];
+
       setViewer(payload.viewer);
-      return payload.viewer;
+      setSavedTrips(availableTrips);
+      setViewerContextLoaded(true);
+
+      return {
+        viewer: payload.viewer,
+        savedTrips: availableTrips,
+      };
     } catch {
       setErrorMessage(
         "Không thể kết nối để kiểm tra tài khoản. Vui lòng thử lại.",
@@ -150,9 +375,10 @@ export function SocialComposerLauncher() {
   async function openComposer() {
     setSuccessMessage("");
 
-    const activeViewer = await ensureViewer();
+    const activeContext =
+      await ensureViewer();
 
-    if (!activeViewer) {
+    if (!activeContext) {
       return;
     }
 
@@ -169,55 +395,76 @@ export function SocialComposerLauncher() {
     setErrorMessage("");
   }
 
-  function handleMediaChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
+  function applyMediaFiles(files: File[]) {
+    const validationError =
+      validateMediaFiles(files);
 
+    if (validationError) {
+      setSelectedMedia([]);
+      setErrorMessage(validationError);
+      return;
+    }
+
+    setSelectedMedia(files);
     setErrorMessage("");
-
-    if (!file) {
-      setSelectedMedia(null);
-      return;
-    }
-
-    if (!ALLOWED_MEDIA_TYPES.has(file.type)) {
-      setSelectedMedia(null);
-      event.target.value = "";
-      setErrorMessage(
-        "Chỉ hỗ trợ ảnh JPEG, PNG, WebP hoặc video MP4, WebM.",
-      );
-      return;
-    }
-
-    if (file.size > MAX_MEDIA_BYTES) {
-      setSelectedMedia(null);
-      event.target.value = "";
-      setErrorMessage("Ảnh hoặc video phải có dung lượng không quá 6 MB.");
-      return;
-    }
-
-    setSelectedMedia(file);
   }
 
-  function removeSelectedMedia() {
-    setSelectedMedia(null);
+  function handleMediaChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(
+      event.target.files ?? [],
+    );
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    applyMediaFiles(files);
+    event.target.value = "";
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleDrop(
+    event: DragEvent<HTMLLabelElement>,
+  ) {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    const files = Array.from(
+      event.dataTransfer.files,
+    );
+
+    applyMediaFiles(files);
+  }
+
+  function removeSelectedMedia(index: number) {
+    setSelectedMedia((current) =>
+      current.filter(
+        (_, mediaIndex) =>
+          mediaIndex !== index,
+      ),
+    );
+    setErrorMessage("");
+  }
+
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
     const trimmedCaption = caption.trim();
 
     if (!trimmedCaption) {
-      setErrorMessage("Hãy viết vài dòng về chuyến đi của bạn.");
+      setErrorMessage(
+        "Hãy viết vài dòng về chuyến đi của bạn.",
+      );
       return;
     }
 
-    if (!selectedMedia) {
-      setErrorMessage("Hãy chọn một ảnh hoặc một video để đăng.");
+    const mediaValidationError =
+      validateMediaFiles(selectedMedia);
+
+    if (mediaValidationError) {
+      setErrorMessage(mediaValidationError);
       return;
     }
 
@@ -226,27 +473,50 @@ export function SocialComposerLauncher() {
     setSuccessMessage("");
 
     const formData = new FormData();
-    formData.set("caption", trimmedCaption);
-    formData.set("media", selectedMedia);
+    formData.set(
+      "caption",
+      trimmedCaption,
+    );
+
+    for (const media of selectedMedia) {
+      formData.append(
+        "media",
+        media,
+        media.name,
+      );
+    }
+
+    if (selectedTripId) {
+      formData.set(
+        "sourceTripId",
+        selectedTripId,
+      );
+    }
 
     try {
-      const response = await fetch("/api/social/posts", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        "/api/social/posts",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
-      const payload = await readPayload(response);
+      const payload =
+        await readPayload(response);
 
       if (response.status === 401) {
         const message = encodeURIComponent(
           "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
         );
-        window.location.href = `/dang-nhap?message=${message}`;
+        window.location.href =
+          `/dang-nhap?message=${message}`;
         return;
       }
 
       if (response.status === 403) {
-        window.location.href = "/khong-co-quyen?reason=inactive";
+        window.location.href =
+          "/khong-co-quyen?reason=inactive";
         return;
       }
 
@@ -259,7 +529,8 @@ export function SocialComposerLauncher() {
       }
 
       setCaption("");
-      setSelectedMedia(null);
+      setSelectedMedia([]);
+      setSelectedTripId("");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -267,7 +538,8 @@ export function SocialComposerLauncher() {
 
       setIsOpen(false);
       setSuccessMessage(
-        payload.message ?? "Đã đăng chuyến đi của bạn.",
+        payload.message ??
+          "Đã đăng chuyến đi của bạn.",
       );
 
       router.refresh();
@@ -279,6 +551,17 @@ export function SocialComposerLauncher() {
       setIsSubmitting(false);
     }
   }
+
+  const selectedTrip =
+    savedTrips.find(
+      (trip) => trip.id === selectedTripId,
+    ) ?? null;
+
+  const isVideoSelection =
+    selectedMedia.length === 1 &&
+    ALLOWED_VIDEO_TYPES.has(
+      selectedMedia[0]?.type ?? "",
+    );
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -313,7 +596,7 @@ export function SocialComposerLauncher() {
           disabled={isCheckingSession}
           className="rounded-xl py-2.5 transition hover:bg-slate-50 disabled:cursor-wait"
         >
-          📷 Ảnh
+          📷 Nhiều ảnh
         </button>
         <button
           type="button"
@@ -360,9 +643,14 @@ export function SocialComposerLauncher() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="mt-4 space-y-4"
+          >
             <label className="block">
-              <span className="sr-only">Nội dung bài đăng</span>
+              <span className="sr-only">
+                Nội dung bài đăng
+              </span>
               <textarea
                 required
                 rows={5}
@@ -379,16 +667,66 @@ export function SocialComposerLauncher() {
             </label>
 
             <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-              <span>Một ảnh hoặc một video, tối đa 6 MB.</span>
               <span>
-                {caption.length}/{MAX_CAPTION_LENGTH}
+                Tối đa 10 ảnh hoặc 1 video · 6 MB mỗi file.
+              </span>
+              <span>
+                {caption.length}/
+                {MAX_CAPTION_LENGTH}
               </span>
             </div>
 
-            <label className="block cursor-pointer rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-emerald-400 hover:bg-emerald-50/40">
+            {savedTrips.length > 0 ? (
+              <label className="block rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <span className="text-xs font-semibold text-slate-700">
+                  🧳 Gắn chuyến đi đã lưu
+                </span>
+                <select
+                  value={selectedTripId}
+                  onChange={(event) => {
+                    setSelectedTripId(
+                      event.target.value,
+                    );
+                    setErrorMessage("");
+                  }}
+                  disabled={isSubmitting}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:opacity-60"
+                >
+                  <option value="">
+                    Không gắn chuyến đi
+                  </option>
+                  {savedTrips.map((trip) => (
+                    <option
+                      key={trip.id}
+                      value={trip.id}
+                    >
+                      {trip.title}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedTrip ? (
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    {selectedTrip.destinationName ??
+                      "Điểm đến chưa xác định"}
+                    {" · "}
+                    {selectedTrip.dayCount} ngày
+                    {" · Chỉ công khai tóm tắt chuyến đi"}
+                  </p>
+                ) : null}
+              </label>
+            ) : null}
+
+            <label
+              onDragOver={(event) =>
+                event.preventDefault()
+              }
+              onDrop={handleDrop}
+              className="block cursor-pointer rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 transition hover:border-emerald-400 hover:bg-emerald-50/40"
+            >
               <input
                 ref={fileInputRef}
-                required
+                multiple
                 type="file"
                 name="media"
                 accept={ACCEPTED_MEDIA}
@@ -397,36 +735,68 @@ export function SocialComposerLauncher() {
                 className="sr-only"
               />
               <span className="flex items-center justify-center gap-2 text-sm font-medium text-slate-700">
-                <span aria-hidden="true">＋</span>
-                Chọn ảnh hoặc video
+                <span aria-hidden="true">
+                  ＋
+                </span>
+                Chọn nhiều ảnh hoặc một video
               </span>
               <span className="mt-1 block text-center text-xs text-slate-500">
-                JPEG, PNG, WebP, MP4 hoặc WebM
+                Có thể kéo thả · JPEG, PNG, WebP, MP4 hoặc WebM
               </span>
             </label>
 
-            {selectedMedia ? (
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">
-                    {selectedMedia.type.startsWith("video/")
-                      ? "🎬 "
-                      : "📷 "}
-                    {selectedMedia.name}
+            {selectedMedia.length > 0 ? (
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-emerald-900">
+                    {isVideoSelection
+                      ? "1 video đã chọn"
+                      : `${selectedMedia.length}/${MAX_IMAGE_COUNT} ảnh đã chọn`}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {formatFileSize(selectedMedia.size)}
-                  </p>
+                  <span className="text-[11px] text-emerald-700">
+                    Giữ theo thứ tự bạn chọn
+                  </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={removeSelectedMedia}
-                  disabled={isSubmitting}
-                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Bỏ chọn
-                </button>
+                <div className="mt-3 space-y-2">
+                  {selectedMedia.map(
+                    (media, index) => (
+                      <div
+                        key={`${media.name}-${media.size}-${media.lastModified}-${index}`}
+                        className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium text-slate-800">
+                            {media.type.startsWith(
+                              "video/",
+                            )
+                              ? "🎬 "
+                              : `📷 ${index + 1}. `}
+                            {media.name}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {formatFileSize(
+                              media.size,
+                            )}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeSelectedMedia(
+                              index,
+                            )
+                          }
+                          disabled={isSubmitting}
+                          className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          Bỏ ảnh
+                        </button>
+                      </div>
+                    ),
+                  )}
+                </div>
               </div>
             ) : null}
 
@@ -444,11 +814,13 @@ export function SocialComposerLauncher() {
               disabled={
                 isSubmitting ||
                 !caption.trim() ||
-                !selectedMedia
+                selectedMedia.length === 0
               }
               className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {isSubmitting ? "Đang đăng..." : "Đăng"}
+              {isSubmitting
+                ? "Đang đăng..."
+                : "Đăng"}
             </button>
           </form>
         </div>

@@ -91,6 +91,16 @@ export function SavedTripActions({
     setErrorMessage("");
   }
 
+  function handleShare() {
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsMenuOpen(false);
+    window.location.href =
+      `/?shareTrip=${encodeURIComponent(tripId)}#cong-dong`;
+  }
+
   async function handleRename(
     event: FormEvent<HTMLFormElement>,
   ) {
@@ -321,13 +331,21 @@ export function SavedTripActions({
       </button>
 
       {isMenuOpen ? (
-        <div className="absolute right-0 top-11 z-30 w-40 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-xl">
+        <div className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-xl">
           <button
             type="button"
             onClick={beginRename}
             className="block w-full px-4 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             Đổi tên
+          </button>
+
+          <button
+            type="button"
+            onClick={handleShare}
+            className="block w-full px-4 py-2.5 text-left text-sm font-medium text-emerald-700 transition hover:bg-emerald-50"
+          >
+            Chia sẻ chuyến đi
           </button>
 
           <button

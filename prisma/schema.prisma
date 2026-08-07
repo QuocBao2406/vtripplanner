@@ -607,6 +607,7 @@ model Trip {
   destinationDistrict     District?                    @relation(fields: [destinationDistrictId], references: [id], onDelete: SetNull)
   participants            TripParticipant[]
   days                    TripDay[]
+  sharedTravelPosts       TravelPost[]                 @relation("TravelPostSourceTrip")
   transportPreference     TripTransportPreference?
   accommodationPreference TripAccommodationPreference?
   preference              TripPreference?
@@ -1254,6 +1255,7 @@ enum TravelPostCommentStatus {
 model TravelPost {
   id           String           @id @default(uuid()) @db.Uuid
   authorUserId String?          @db.Uuid
+  sourceTripId String?          @db.Uuid
   type         TravelPostType   @default(USER_TRIP)
   status       TravelPostStatus @default(DRAFT)
   headline     String?          @db.VarChar(220)
@@ -1264,15 +1266,17 @@ model TravelPost {
   updatedAt    DateTime         @updatedAt @db.Timestamptz(6)
   deletedAt    DateTime?        @db.Timestamptz(6)
 
-  author    User?                @relation("TravelPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-  media     TravelPostMedia[]
-  places    TravelPostPlace[]
-  reactions TravelPostReaction[]
-  comments  TravelPostComment[]
+  author     User?                @relation("TravelPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  sourceTrip Trip?                @relation("TravelPostSourceTrip", fields: [sourceTripId], references: [id], onDelete: SetNull)
+  media      TravelPostMedia[]
+  places     TravelPostPlace[]
+  reactions  TravelPostReaction[]
+  comments   TravelPostComment[]
 
   @@index([authorUserId, createdAt])
   @@index([status, publishedAt])
   @@index([type, status, publishedAt])
+  @@index([sourceTripId])
   @@index([deletedAt])
   @@map("travel_posts")
 }

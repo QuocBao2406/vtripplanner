@@ -1,3 +1,4 @@
+import { SocialPostMediaGallery } from "@/components/social/social-post-media-gallery";
 import { SocialPostActions } from "@/components/social/social-post-actions";
 import type { PublicSocialFeedPost } from "@/lib/social-feed/public-feed";
 
@@ -6,14 +7,19 @@ type SocialFeedProps = {
   posts: PublicSocialFeedPost[];
 };
 
-const TYPE_LABELS: Record<PublicSocialFeedPost["type"], string> = {
+const TYPE_LABELS: Record<
+  PublicSocialFeedPost["type"],
+  string
+> = {
   USER_TRIP: "Chia sẻ chuyến đi",
   SEASONAL_GUIDE: "Gợi ý theo mùa",
   EVERGREEN_GUIDE: "Khám phá địa điểm",
   PROMOTED: "Nổi bật",
 };
 
-function formatPublishedAt(value: Date): string {
+function formatPublishedAt(
+  value: Date,
+): string {
   return new Intl.DateTimeFormat("vi-VN", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -23,17 +29,27 @@ function formatPublishedAt(value: Date): string {
 
 function getInitial(name: string): string {
   const normalized = name.trim();
-  return normalized ? normalized.charAt(0).toLocaleUpperCase("vi-VN") : "V";
+  return normalized
+    ? normalized
+        .charAt(0)
+        .toLocaleUpperCase("vi-VN")
+    : "V";
 }
 
-function PostAvatar({ post }: { post: PublicSocialFeedPost }) {
+function PostAvatar({
+  post,
+}: {
+  post: PublicSocialFeedPost;
+}) {
   if (post.sourceAvatarUrl) {
     return (
       <div
         role="img"
         aria-label={`Ảnh đại diện của ${post.sourceName}`}
         className="size-11 shrink-0 rounded-full bg-cover bg-center shadow-sm"
-        style={{ backgroundImage: `url("${post.sourceAvatarUrl}")` }}
+        style={{
+          backgroundImage: `url("${post.sourceAvatarUrl}")`,
+        }}
       />
     );
   }
@@ -45,39 +61,45 @@ function PostAvatar({ post }: { post: PublicSocialFeedPost }) {
   );
 }
 
-function PostMedia({ post }: { post: PublicSocialFeedPost }) {
-  if (!post.coverImageUrl) {
+function TripSummaryCard({
+  post,
+}: {
+  post: PublicSocialFeedPost;
+}) {
+  if (!post.sourceTrip) {
     return null;
   }
 
-  if (post.mediaType === "VIDEO") {
-    return (
-      <div className="border-y border-slate-100 bg-slate-950">
-        <video
-          controls
-          preload="metadata"
-          className="mx-auto max-h-[620px] w-full object-contain"
-          aria-label={post.coverImageAlt}
-        >
-          <source
-            src={post.coverImageUrl}
-            type={post.mediaMimeType ?? undefined}
-          />
-          Trình duyệt của bạn chưa hỗ trợ phát video.
-        </video>
-      </div>
-    );
-  }
+  const trip = post.sourceTrip;
 
   return (
-    <div
-      role="img"
-      aria-label={post.coverImageAlt}
-      className="aspect-[16/10] w-full bg-slate-100 bg-cover bg-center"
-      style={{
-        backgroundImage: `url("${post.coverImageUrl}")`,
-      }}
-    />
+    <div className="mx-4 mt-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 sm:mx-5">
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-lg text-white shadow-sm">
+          🧳
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+            Lịch trình VTripPlanner
+          </p>
+          <p className="mt-1 font-semibold text-slate-900">
+            {trip.title}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            {trip.destinationName ??
+              "Điểm đến chưa xác định"}
+            {" · "}
+            {trip.dayCount} ngày
+            {" · "}
+            {trip.placeCount} địa điểm
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Chỉ hiển thị tóm tắt, không công khai ngày giờ hay lịch trình chi tiết.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -122,9 +144,17 @@ export function SocialFeed({
               </div>
 
               <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                <span>{formatPublishedAt(post.publishedAt)}</span>
-                <span aria-hidden="true">·</span>
-                <span>{TYPE_LABELS[post.type]}</span>
+                <span>
+                  {formatPublishedAt(
+                    post.publishedAt,
+                  )}
+                </span>
+                <span aria-hidden="true">
+                  ·
+                </span>
+                <span>
+                  {TYPE_LABELS[post.type]}
+                </span>
               </div>
             </div>
           </div>
@@ -140,7 +170,9 @@ export function SocialFeed({
               {post.caption ? (
                 <p
                   className={`whitespace-pre-wrap text-sm leading-7 text-slate-700 ${
-                    post.headline ? "mt-2" : ""
+                    post.headline
+                      ? "mt-2"
+                      : ""
                   }`}
                 >
                   {post.caption}
@@ -149,7 +181,11 @@ export function SocialFeed({
             </div>
           ) : null}
 
-          <PostMedia post={post} />
+          <SocialPostMediaGallery
+            media={post.media}
+          />
+
+          <TripSummaryCard post={post} />
 
           {post.places.length > 0 ? (
             <div className="flex flex-wrap gap-2 px-4 pt-4 sm:px-5">
@@ -170,9 +206,15 @@ export function SocialFeed({
 
           <SocialPostActions
             postId={post.id}
-            initialReactionCount={post.reactionCount}
-            initialViewerReaction={post.viewerReaction}
-            commentCount={post.commentCount}
+            initialReactionCount={
+              post.reactionCount
+            }
+            initialViewerReaction={
+              post.viewerReaction
+            }
+            commentCount={
+              post.commentCount
+            }
           />
         </article>
       ))}
