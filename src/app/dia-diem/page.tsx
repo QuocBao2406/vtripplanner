@@ -143,7 +143,7 @@ function formatAddress(place: PublicPlaceCard): string {
 
 function PlaceCard({ place }: { place: PublicPlaceCard }) {
   return (
-    <article className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70">
+    <Link href={`/dia-diem/${place.slug}`} className="group block overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70">
       <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-emerald-100 via-teal-50 to-sky-100">
         {place.coverImageUrl ? (
           <div
@@ -219,7 +219,7 @@ function PlaceCard({ place }: { place: PublicPlaceCard }) {
           </div>
         </dl>
       </div>
-    </article>
+    </Link>
   );
 }
 

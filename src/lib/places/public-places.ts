@@ -341,3 +341,267 @@ export async function getPublicPlaceCatalog(
     pageSize,
   };
 }
+
+export type PublicPlaceDetail = {
+  id: string;
+  name: string;
+  slug: string;
+  shortDescription: string | null;
+  description: string | null;
+  addressLine: string;
+  ward: string | null;
+  districtName: string | null;
+  provinceName: string;
+  provinceSlug: string;
+  categoryName: string;
+  categorySlug: string;
+  latitude: number | null;
+  longitude: number | null;
+  phone: string | null;
+  email: string | null;
+  websiteUrl: string | null;
+  bestVisitMonths: number[];
+  seasonNote: string | null;
+  images: Array<{
+    url: string | null;
+    alt: string;
+    caption: string | null;
+  }>;
+  openingHours: Array<{
+    dayOfWeek: string;
+    periodOrder: number;
+    openTime: Date | null;
+    closeTime: Date | null;
+    closesNextDay: boolean;
+    isClosed: boolean;
+    isOpen24Hours: boolean;
+    note: string | null;
+  }>;
+  prices: Array<{
+    id: string;
+    label: string;
+    audience: string;
+    unit: string;
+    amount: number;
+    currency: string;
+    minimumQuantity: number | null;
+    maximumQuantity: number | null;
+    validFrom: Date | null;
+    validUntil: Date | null;
+    note: string | null;
+  }>;
+  reviews: Array<{
+    id: string;
+    rating: number;
+    content: string | null;
+    createdAt: Date;
+    authorName: string;
+  }>;
+  averageRating: number | null;
+  reviewCount: number;
+};
+
+export async function getPublicPlaceBySlug(
+  slug: string,
+): Promise<PublicPlaceDetail | null> {
+  const normalizedSlug = normalizeText(slug);
+
+  if (!normalizedSlug) {
+    return null;
+  }
+
+  const place = await prisma.place.findFirst({
+    where: {
+      slug: normalizedSlug,
+      isActive: true,
+      deletedAt: null,
+      verificationStatus: "VERIFIED",
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      shortDescription: true,
+      description: true,
+      addressLine: true,
+      ward: true,
+      latitude: true,
+      longitude: true,
+      phone: true,
+      email: true,
+      websiteUrl: true,
+      bestVisitMonths: true,
+      seasonNote: true,
+      district: {
+        select: {
+          name: true,
+        },
+      },
+      province: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
+      category: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
+      images: {
+        orderBy: [
+          {
+            isCover: "desc",
+          },
+          {
+            sortOrder: "asc",
+          },
+        ],
+        select: {
+          storagePath: true,
+          altText: true,
+          caption: true,
+        },
+      },
+      openingHours: {
+        orderBy: [
+          {
+            dayOfWeek: "asc",
+          },
+          {
+            periodOrder: "asc",
+          },
+        ],
+        select: {
+          dayOfWeek: true,
+          periodOrder: true,
+          openTime: true,
+          closeTime: true,
+          closesNextDay: true,
+          isClosed: true,
+          isOpen24Hours: true,
+          note: true,
+        },
+      },
+      prices: {
+        where: {
+          isActive: true,
+        },
+        orderBy: [
+          {
+            amount: "asc",
+          },
+          {
+            label: "asc",
+          },
+        ],
+        select: {
+          id: true,
+          label: true,
+          audience: true,
+          unit: true,
+          amount: true,
+          currency: true,
+          minimumQuantity: true,
+          maximumQuantity: true,
+          validFrom: true,
+          validUntil: true,
+          note: true,
+        },
+      },
+      reviews: {
+        where: {
+          status: "PUBLISHED",
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          id: true,
+          rating: true,
+          content: true,
+          createdAt: true,
+          author: {
+            select: {
+              profile: {
+                select: {
+                  displayName: true,
+                  fullName: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!place) {
+    return null;
+  }
+
+  const ratings = place.reviews.map((review) => review.rating);
+
+  return {
+    id: place.id,
+    name: place.name,
+    slug: place.slug,
+    shortDescription: place.shortDescription,
+    description: place.description,
+    addressLine: place.addressLine,
+    ward: place.ward,
+    districtName: place.district?.name ?? null,
+    provinceName: place.province.name,
+    provinceSlug: place.province.slug,
+    categoryName: place.category.name,
+    categorySlug: place.category.slug,
+    latitude: place.latitude?.toNumber() ?? null,
+    longitude: place.longitude?.toNumber() ?? null,
+    phone: place.phone,
+    email: place.email,
+    websiteUrl: place.websiteUrl,
+    bestVisitMonths: place.bestVisitMonths,
+    seasonNote: place.seasonNote,
+    images: place.images.map((image) => ({
+      url: getPublicStorageUrl(image.storagePath),
+      alt: image.altText ?? `Ảnh minh họa ${place.name}`,
+      caption: image.caption,
+    })),
+    openingHours: place.openingHours.map((openingHour) => ({
+      dayOfWeek: openingHour.dayOfWeek,
+      periodOrder: openingHour.periodOrder,
+      openTime: openingHour.openTime,
+      closeTime: openingHour.closeTime,
+      closesNextDay: openingHour.closesNextDay,
+      isClosed: openingHour.isClosed,
+      isOpen24Hours: openingHour.isOpen24Hours,
+      note: openingHour.note,
+    })),
+    prices: place.prices.map((price) => ({
+      id: price.id,
+      label: price.label,
+      audience: price.audience,
+      unit: price.unit,
+      amount: price.amount.toNumber(),
+      currency: price.currency,
+      minimumQuantity: price.minimumQuantity,
+      maximumQuantity: price.maximumQuantity,
+      validFrom: price.validFrom,
+      validUntil: price.validUntil,
+      note: price.note,
+    })),
+    reviews: place.reviews.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      content: review.content,
+      createdAt: review.createdAt,
+      authorName:
+        review.author.profile?.displayName ??
+        review.author.profile?.fullName ??
+        "Khách du lịch",
+    })),
+    averageRating: calculateAverageRating(ratings),
+    reviewCount: ratings.length,
+  };
+}
