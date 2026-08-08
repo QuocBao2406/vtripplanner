@@ -42,6 +42,7 @@ type ModuleCardProps = {
   description: string;
   icon: LucideIcon;
   badge?: string;
+  href?: string;
 };
 
 function StatCard({
@@ -79,9 +80,16 @@ function ModuleCard({
   description,
   icon: Icon,
   badge = "Sắp triển khai",
+  href,
 }: ModuleCardProps) {
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+  const content = (
+    <article
+      className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition ${
+        href
+          ? "hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md"
+          : ""
+      }`}
+    >
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
           <Icon aria-hidden="true" className="size-5" />
@@ -101,6 +109,16 @@ function ModuleCard({
         </div>
       </div>
     </article>
+  );
+
+  if (!href) {
+    return content;
+  }
+
+  return (
+    <Link href={href} className="block">
+      {content}
+    </Link>
   );
 }
 
@@ -382,8 +400,8 @@ export default async function AdminPage() {
               Các module quản lý
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Dashboard đã có nền dữ liệu thật. Các màn hình CRUD sẽ được mở
-              lần lượt ở các bước kế tiếp để tránh tạo link 404.
+              Dashboard dùng dữ liệu thật. Khu vực và Địa điểm đã có màn hình
+              quản lý trực tiếp; các module còn lại sẽ được mở lần lượt.
             </p>
           </div>
 
@@ -402,13 +420,15 @@ export default async function AdminPage() {
               title="Khu vực du lịch"
               description="Tạo và quản lý điểm đến cấp tỉnh/thành như Vũng Tàu, Phan Thiết."
               icon={Map}
-              badge="Bước tiếp theo"
+              badge="Quản lý"
+              href="/quan-tri/khu-vuc"
             />
             <ModuleCard
               title="Địa điểm"
-              description="Tạo Place/POI, quản lý dữ liệu và xét duyệt địa điểm do Partner gửi."
+              description="Tạo Place/POI, quản lý dữ liệu và chuẩn bị luồng duyệt địa điểm Partner."
               icon={MapPinned}
-              badge="Bước tiếp theo"
+              badge="Quản lý"
+              href="/quan-tri/dia-diem"
             />
             <ModuleCard
               title="Bài viết"
