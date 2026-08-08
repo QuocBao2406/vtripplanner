@@ -345,7 +345,7 @@ export function AdminPlaceManager({
 
   return (
     <div className="mt-6 grid gap-5 xl:grid-cols-[430px_minmax(0,1fr)]">
-      <section className="self-start rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
+      <section className="self-start rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.15em] text-violet-700">
@@ -432,7 +432,7 @@ export function AdminPlaceManager({
             />
           </label>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm font-semibold text-slate-700">
               Danh mục
               <select
@@ -531,42 +531,7 @@ export function AdminPlaceManager({
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3.5 text-sm outline-none focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             />
           </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-sm font-semibold text-slate-700">
-              Vĩ độ
-              <input
-                inputMode="decimal"
-                value={form.latitude}
-                onChange={(event) => {
-                  setForm((current) => ({
-                    ...current,
-                    latitude: event.target.value,
-                  }));
-                }}
-                placeholder="10.345678"
-                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-violet-500"
-              />
-            </label>
-
-            <label className="block text-sm font-semibold text-slate-700">
-              Kinh độ
-              <input
-                inputMode="decimal"
-                value={form.longitude}
-                onChange={(event) => {
-                  setForm((current) => ({
-                    ...current,
-                    longitude: event.target.value,
-                  }));
-                }}
-                placeholder="107.084259"
-                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm outline-none focus:border-violet-500"
-              />
-            </label>
-          </div>
-
-          <label className="block text-sm font-semibold text-slate-700">
+<label className="block text-sm font-semibold text-slate-700">
             Mô tả ngắn
             <textarea
               value={form.shortDescription}
