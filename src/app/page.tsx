@@ -81,7 +81,7 @@ export default async function Home({
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.88)_0%,rgba(2,6,23,0.66)_45%,rgba(2,6,23,0.28)_100%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.18),transparent_30%)]" />
 
-        <header className="relative z-10 border-b border-white/15 bg-slate-950/20 backdrop-blur-md">
+        <header className="relative z-50 border-b border-white/15 bg-slate-950/20 backdrop-blur-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
             <Link
               href="/"
