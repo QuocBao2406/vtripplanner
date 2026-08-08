@@ -159,6 +159,7 @@ export default async function Home() {
               <SocialInfiniteFeed
                 key={feed.sessionKey}
                 currentMonth={feed.currentMonth}
+                snapshotAt={feed.sessionKey}
                 initialPosts={feed.posts}
                 initialCursor={feed.nextCursor}
                 initialHasMore={feed.hasMore}

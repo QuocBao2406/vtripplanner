@@ -12,11 +12,15 @@ import type { PublicSocialFeedPost } from "@/lib/social-feed/public-feed";
 
 type SocialInfiniteFeedProps = {
   currentMonth: number;
+  snapshotAt: string;
   initialPosts:
     PublicSocialFeedPost[];
   initialCursor: string | null;
   initialHasMore: boolean;
 };
+
+const NEW_POST_POLL_INTERVAL_MS =
+  60_000;
 
 type FeedApiPost =
   Omit<
@@ -44,6 +48,11 @@ type FeedApiResponse =
   | FeedApiSuccess
   | FeedApiFailure;
 
+type FeedUpdatesApiResponse = {
+  ok: boolean;
+  hasNewPosts?: boolean;
+};
+
 function hydrateApiPost(
   post: FeedApiPost,
 ): PublicSocialFeedPost {
@@ -68,6 +77,7 @@ function hydrateApiPost(
 
 export function SocialInfiniteFeed({
   currentMonth,
+  snapshotAt,
   initialPosts,
   initialCursor,
   initialHasMore,
@@ -91,6 +101,74 @@ export function SocialInfiniteFeed({
     );
   const requestInFlightRef =
     useRef(false);
+  const updateCheckInFlightRef =
+    useRef(false);
+  const [hasNewPosts, setHasNewPosts] =
+    useState(false);
+
+  const checkForNewPosts =
+    useCallback(async () => {
+      if (
+        hasNewPosts ||
+        updateCheckInFlightRef.current ||
+        document.visibilityState !==
+          "visible"
+      ) {
+        return;
+      }
+
+      updateCheckInFlightRef.current =
+        true;
+
+      try {
+        const searchParams =
+          new URLSearchParams({
+            month:
+              String(currentMonth),
+            snapshotAt,
+          });
+        const response = await fetch(
+          `/api/social/feed/updates?${searchParams.toString()}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        );
+        const payload =
+          (await response.json()) as
+            FeedUpdatesApiResponse;
+
+        if (
+          response.ok &&
+          payload.ok &&
+          payload.hasNewPosts
+        ) {
+          setHasNewPosts(true);
+        }
+      } catch (error) {
+        console.error(
+          "Social feed update check failed",
+          error,
+        );
+      } finally {
+        updateCheckInFlightRef.current =
+          false;
+      }
+    }, [
+      currentMonth,
+      hasNewPosts,
+      snapshotAt,
+    ]);
+
+  const refreshToNewSnapshot =
+    useCallback(() => {
+      window.history.replaceState(
+        null,
+        "",
+        "/#cong-dong",
+      );
+      window.location.reload();
+    }, []);
 
   const loadMore = useCallback(
     async () => {
@@ -200,6 +278,38 @@ export function SocialInfiniteFeed({
   );
 
   useEffect(() => {
+    const intervalId =
+      window.setInterval(() => {
+        void checkForNewPosts();
+      }, NEW_POST_POLL_INTERVAL_MS);
+
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          void checkForNewPosts();
+        }
+      };
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+
+    return () => {
+      window.clearInterval(
+        intervalId,
+      );
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+    };
+  }, [checkForNewPosts]);
+
+  useEffect(() => {
     const sentinel =
       sentinelRef.current;
 
@@ -244,6 +354,23 @@ export function SocialInfiniteFeed({
 
   return (
     <div>
+      {hasNewPosts ? (
+        <div
+          className="sticky top-3 z-20 mb-4 flex justify-center"
+          aria-live="polite"
+        >
+          <button
+            type="button"
+            onClick={
+              refreshToNewSnapshot
+            }
+            className="rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-semibold text-emerald-800 shadow-lg transition hover:bg-emerald-50"
+          >
+            ✨ Có bài viết mới · Xem ngay
+          </button>
+        </div>
+      ) : null}
+
       <SocialFeed
         currentMonth={currentMonth}
         posts={posts}
