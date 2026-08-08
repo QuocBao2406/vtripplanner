@@ -411,7 +411,7 @@ export function SocialPostComments({
     <div className="border-t border-slate-100 pb-4 pt-4">
       <form
         onSubmit={handleCreate}
-        className="flex items-end gap-2"
+        className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-end"
       >
         <label className="min-w-0 flex-1">
           <span className="sr-only">
@@ -436,7 +436,7 @@ export function SocialPostComments({
           disabled={
             isSubmitting || !newContent.trim()
           }
-          className="shrink-0 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="min-h-11 w-full shrink-0 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
         >
           {isSubmitting ? "Đang gửi" : "Gửi"}
         </button>
@@ -567,7 +567,7 @@ export function SocialPostComments({
                               }
                               disabled={isBusy}
                               aria-label="Tùy chọn bình luận"
-                              className="rounded-full px-2 py-1 text-sm font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                              className="flex size-10 items-center justify-center rounded-full text-sm font-semibold text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
                             >
                               •••
                             </button>

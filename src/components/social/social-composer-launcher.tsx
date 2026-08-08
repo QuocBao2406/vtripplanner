@@ -574,14 +574,14 @@ export function SocialComposerLauncher() {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-3 p-4 sm:p-5">
+      <div className="flex items-center gap-3 p-3.5 sm:p-5">
         <Avatar viewer={viewer} />
 
         <button
           type="button"
           onClick={openComposer}
           disabled={isCheckingSession}
-          className="flex-1 rounded-full bg-slate-100 px-5 py-3 text-left text-sm font-normal text-slate-500 transition hover:bg-slate-200 disabled:cursor-wait disabled:opacity-70"
+          className="min-w-0 flex-1 rounded-full bg-slate-100 px-4 py-3 text-left text-sm font-normal text-slate-500 transition hover:bg-slate-200 disabled:cursor-wait disabled:opacity-70 sm:px-5"
         >
           {isCheckingSession
             ? "Đang kiểm tra tài khoản..."
@@ -594,7 +594,7 @@ export function SocialComposerLauncher() {
           type="button"
           onClick={openComposer}
           disabled={isCheckingSession}
-          className="rounded-xl py-2.5 transition hover:bg-slate-50 disabled:cursor-wait"
+          className="min-h-11 rounded-xl py-2.5 transition hover:bg-slate-50 disabled:cursor-wait"
         >
           📷 Nhiều ảnh
         </button>
@@ -602,7 +602,7 @@ export function SocialComposerLauncher() {
           type="button"
           onClick={openComposer}
           disabled={isCheckingSession}
-          className="rounded-xl py-2.5 transition hover:bg-slate-50 disabled:cursor-wait"
+          className="min-h-11 rounded-xl py-2.5 transition hover:bg-slate-50 disabled:cursor-wait"
         >
           🎬 Video
         </button>
@@ -611,7 +611,7 @@ export function SocialComposerLauncher() {
           onClick={() => {
             router.push("/bai-viet-cua-toi");
           }}
-          className="rounded-xl py-2.5 transition hover:bg-slate-50"
+          className="min-h-11 rounded-xl py-2.5 transition hover:bg-slate-50"
         >
           📝 Bài viết của tôi
         </button>
@@ -620,7 +620,7 @@ export function SocialComposerLauncher() {
           onClick={() => {
             router.push("/bai-viet-da-luu");
           }}
-          className="rounded-xl py-2.5 transition hover:bg-slate-50"
+          className="min-h-11 rounded-xl py-2.5 transition hover:bg-slate-50"
         >
           🔖 Bài viết đã lưu
         </button>
@@ -636,7 +636,7 @@ export function SocialComposerLauncher() {
       ) : null}
 
       {isOpen && viewer ? (
-        <div className="border-t border-slate-100 p-4 sm:p-5">
+        <div className="border-t border-slate-100 p-3.5 sm:p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <Avatar viewer={viewer} />
@@ -655,7 +655,7 @@ export function SocialComposerLauncher() {
               onClick={closeComposer}
               disabled={isSubmitting}
               aria-label="Đóng trình đăng bài"
-              className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
+              className="flex size-11 shrink-0 items-center justify-center rounded-full border border-slate-200 text-lg font-medium text-slate-500 transition hover:bg-slate-50 disabled:opacity-50"
             >
               ×
             </button>
@@ -834,7 +834,7 @@ export function SocialComposerLauncher() {
                 !caption.trim() ||
                 selectedMedia.length === 0
               }
-              className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="min-h-11 w-full rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {isSubmitting
                 ? "Đang đăng..."

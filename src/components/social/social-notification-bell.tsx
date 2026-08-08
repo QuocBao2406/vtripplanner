@@ -235,7 +235,7 @@ export function SocialNotificationBell() {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-12 z-50 w-[min(90vw,360px)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-2xl">
+        <div className="fixed inset-x-3 top-16 z-50 max-h-[calc(100svh-5rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[360px]">
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="font-semibold">
               Thông báo
@@ -246,7 +246,7 @@ export function SocialNotificationBell() {
           </div>
 
           {notifications.length > 0 ? (
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-[calc(100svh-10rem)] overflow-y-auto sm:max-h-96">
               {notifications.map(
                 (notification) => (
                   <a

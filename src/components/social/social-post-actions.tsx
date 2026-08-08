@@ -306,7 +306,7 @@ export function SocialPostActions({
     : null;
 
   return (
-    <div className="px-4 pt-4 sm:px-5">
+    <div className="px-3.5 pt-4 sm:px-5">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3 text-xs text-slate-500">
         <span>
           {reactionCount > 0
@@ -327,7 +327,7 @@ export function SocialPostActions({
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 py-2">
+      <div className="grid grid-cols-3 gap-1 py-2 sm:gap-2">
         <div className="relative flex rounded-xl transition hover:bg-slate-50">
           <button
             type="button"
@@ -338,7 +338,7 @@ export function SocialPostActions({
                 ? "Bấm để bỏ reaction"
                 : "Bấm để Thích"
             }
-            className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-l-xl px-2 py-2.5 text-sm font-medium transition disabled:cursor-wait disabled:opacity-60 ${
+            className={`flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1 rounded-l-xl px-1.5 py-2.5 text-xs font-medium transition disabled:cursor-wait disabled:opacity-60 sm:gap-1.5 sm:px-2 sm:text-sm ${
               activeReaction
                 ? activeReaction.activeClassName
                 : "text-slate-600"
@@ -363,13 +363,13 @@ export function SocialPostActions({
             disabled={isSubmitting}
             aria-label="Chọn reaction"
             aria-expanded={isMenuOpen}
-            className="rounded-r-xl px-2 py-2.5 text-xs text-slate-500 transition hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60"
+            className="min-h-11 rounded-r-xl px-1.5 py-2.5 text-xs text-slate-500 transition hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60 sm:px-2"
           >
             ▾
           </button>
 
           {isMenuOpen ? (
-            <div className="absolute bottom-full left-0 z-20 mb-2 flex gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+            <div className="absolute bottom-full left-0 z-20 mb-2 flex max-w-[calc(100vw-2rem)] gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
               {REACTION_OPTIONS.map((type) => {
                 const option = REACTION_META[type];
                 const isSelected =
@@ -405,7 +405,7 @@ export function SocialPostActions({
             setIsCommentsOpen((current) => !current)
           }
           aria-expanded={isCommentsOpen}
-          className={`rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-slate-50 ${
+          className={`min-h-11 rounded-xl px-1.5 py-2.5 text-xs font-medium transition hover:bg-slate-50 sm:px-3 sm:text-sm ${
             isCommentsOpen
               ? "text-emerald-700"
               : "text-slate-600"
@@ -419,7 +419,7 @@ export function SocialPostActions({
           onClick={toggleSave}
           disabled={isSaveSubmitting}
           aria-pressed={isSaved}
-          className={`rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 ${
+          className={`min-h-11 rounded-xl px-1.5 py-2.5 text-xs font-medium transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 sm:px-3 sm:text-sm ${
             isSaved
               ? "bg-emerald-50 text-emerald-700"
               : "text-slate-600"

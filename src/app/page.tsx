@@ -66,7 +66,7 @@ export default async function Home({
     ]);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-950">
+    <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-950">
       <section className="relative overflow-hidden bg-slate-950 text-white">
         <div
           aria-hidden="true"
@@ -81,15 +81,15 @@ export default async function Home({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.18),transparent_30%)]" />
 
         <header className="relative z-10 border-b border-white/15 bg-slate-950/20 backdrop-blur-md">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:px-8">
             <Link
               href="/"
-              className="text-xl font-bold tracking-tight text-white"
+              className="shrink-0 text-lg font-bold tracking-tight text-white sm:text-xl"
             >
               VTripPlanner
             </Link>
 
-            <nav className="flex items-center gap-2 text-sm font-medium">
+            <nav className="flex min-w-0 items-center gap-1 text-sm font-medium sm:gap-2">
               <a
                 href="#cong-dong"
                 className="hidden rounded-xl px-3 py-2 text-slate-100 transition hover:bg-white/10 hover:text-white sm:inline-flex"
@@ -99,7 +99,7 @@ export default async function Home({
               <SocialNotificationBell />
               <Link
                 href="/dang-nhap"
-                className="rounded-xl border border-white/25 px-4 py-2.5 font-semibold text-white transition hover:bg-white/10"
+                className="whitespace-nowrap rounded-xl border border-white/25 px-3 py-2 font-semibold text-white transition hover:bg-white/10 sm:px-4 sm:py-2.5"
               >
                 Đăng nhập
               </Link>
@@ -113,14 +113,14 @@ export default async function Home({
           </div>
         </header>
 
-        <div className="relative z-10 mx-auto flex min-h-[88vh] max-w-7xl items-center px-4 py-16 sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto flex min-h-[76svh] max-w-7xl items-center px-4 py-12 sm:min-h-[88vh] sm:px-6 sm:py-16 lg:px-8">
           <div className="max-w-4xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/25 bg-emerald-950/30 px-3.5 py-2 text-xs font-semibold tracking-[0.12em] text-emerald-50 backdrop-blur">
               <span aria-hidden="true">●</span>
               TRIP PLANNER + CỘNG ĐỒNG DU LỊCH
             </div>
 
-            <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-[1.08] tracking-[-0.035em] text-white sm:text-6xl lg:text-7xl">
+            <h1 className="mt-6 max-w-4xl text-[2.35rem] font-bold leading-[1.08] tracking-[-0.035em] text-white sm:text-6xl lg:text-7xl">
               Lên chuyến đi của bạn.
               <span className="mt-2 block text-emerald-300">
                 Rồi khám phá cảm hứng từ cộng đồng.
@@ -153,7 +153,7 @@ export default async function Home({
           </div>
         </div>
 
-        <div className="absolute bottom-4 right-5 z-10 rounded-full bg-slate-950/35 px-3 py-1.5 text-[11px] font-medium text-white/80 backdrop-blur">
+        <div className="absolute bottom-4 right-5 z-10 hidden rounded-full bg-slate-950/35 px-3 py-1.5 text-[11px] font-medium text-white/80 backdrop-blur sm:block">
           Hồ Tuyền Lâm · Đà Lạt
         </div>
       </section>
@@ -162,7 +162,7 @@ export default async function Home({
         id="cong-dong"
         className="scroll-mt-6 border-t border-slate-200 bg-slate-100/70"
       >
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,680px)_minmax(220px,0.45fr)] lg:px-8 lg:py-16">
+        <div className="mx-auto grid max-w-7xl gap-6 px-3 py-8 sm:gap-8 sm:px-6 sm:py-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,680px)_minmax(220px,0.45fr)] lg:px-8 lg:py-16">
           <aside className="hidden lg:block">
             <div className="sticky top-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
@@ -189,7 +189,7 @@ export default async function Home({
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
                 Cộng đồng du lịch
               </p>
-              <h2 className="mt-2 text-3xl font-bold tracking-[-0.025em] text-slate-950 sm:text-4xl">
+              <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] text-slate-950 sm:text-4xl">
                 Chuyến đi, câu chuyện và gợi ý cho tháng {feed.currentMonth}
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">

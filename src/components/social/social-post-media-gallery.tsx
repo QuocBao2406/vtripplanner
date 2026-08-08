@@ -124,7 +124,7 @@ export function SocialPostMediaGallery({
         <video
           controls
           preload="metadata"
-          className="mx-auto max-h-[620px] w-full object-contain"
+          className="mx-auto max-h-[70svh] w-full object-contain sm:max-h-[620px]"
           aria-label={video.altText}
         >
           <source
@@ -165,7 +165,7 @@ export function SocialPostMediaGallery({
       ) : null}
 
       {images.length === 2 ? (
-        <div className="grid h-[320px] grid-cols-2 gap-1 bg-white sm:h-[460px]">
+        <div className="grid h-[260px] grid-cols-2 gap-1 bg-white sm:h-[460px]">
           {images.map((image, index) => (
             <ImageTile
               key={image.id}
@@ -180,7 +180,7 @@ export function SocialPostMediaGallery({
       ) : null}
 
       {images.length === 3 ? (
-        <div className="grid h-[320px] grid-cols-3 grid-rows-2 gap-1 bg-white sm:h-[460px]">
+        <div className="grid h-[260px] grid-cols-3 grid-rows-2 gap-1 bg-white sm:h-[460px]">
           <ImageTile
             image={images[0]}
             onOpen={() =>
@@ -206,7 +206,7 @@ export function SocialPostMediaGallery({
       ) : null}
 
       {images.length >= 4 ? (
-        <div className="grid h-[320px] grid-cols-2 grid-rows-2 gap-1 bg-white sm:h-[460px]">
+        <div className="grid h-[260px] grid-cols-2 grid-rows-2 gap-1 bg-white sm:h-[460px]">
           {visibleImages.map(
             (image, index) => (
               <ImageTile
@@ -232,7 +232,7 @@ export function SocialPostMediaGallery({
           role="dialog"
           aria-modal="true"
           aria-label="Xem ảnh bài đăng"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-2 sm:p-4"
         >
           <button
             type="button"
@@ -240,7 +240,7 @@ export function SocialPostMediaGallery({
               setActiveImageIndex(null)
             }
             aria-label="Đóng xem ảnh"
-            className="absolute right-4 top-4 z-10 flex size-11 items-center justify-center rounded-full bg-white/10 text-2xl text-white transition hover:bg-white/20"
+            className="absolute right-2 top-2 z-10 flex size-11 items-center justify-center rounded-full bg-white/10 text-2xl text-white transition hover:bg-white/20 sm:right-4 sm:top-4"
           >
             ×
           </button>
@@ -269,7 +269,7 @@ export function SocialPostMediaGallery({
           <div
             role="img"
             aria-label={activeImage.altText}
-            className="h-[82vh] w-[86vw] max-w-6xl bg-contain bg-center bg-no-repeat"
+            className="h-[78svh] w-full max-w-6xl bg-contain bg-center bg-no-repeat sm:h-[82vh] sm:w-[86vw]"
             style={{
               backgroundImage: `url("${activeImage.url}")`,
             }}

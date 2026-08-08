@@ -341,35 +341,35 @@ export function TripPlannerLauncher() {
 
   return (
     <div className="w-full max-w-5xl">
-      <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-3 lg:justify-start">
         <button
           type="button"
           onClick={() => {
             setIsOpen((current) => !current);
             setErrorMessage("");
           }}
-          className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400"
+          className="min-h-11 w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400 sm:w-auto"
         >
           ✈ Tạo chuyến đi
         </button>
 
         <a
           href="#cong-dong"
-          className="rounded-2xl border border-white/25 bg-white/5 px-5 py-3 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10"
+          className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/25 bg-white/5 px-5 py-3 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10 sm:w-auto"
         >
           Xem cộng đồng ↓
         </a>
 
         <a
           href="/chuyen-di-cua-toi"
-          className="rounded-2xl border border-white/15 bg-slate-950/25 px-5 py-3 text-sm font-medium text-slate-100 backdrop-blur transition hover:bg-white/10"
+          className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/15 bg-slate-950/25 px-5 py-3 text-sm font-medium text-slate-100 backdrop-blur transition hover:bg-white/10 sm:w-auto"
         >
           🧳 Chuyến đi của tôi
         </a>
       </div>
 
       {isOpen ? (
-        <div className="mt-5 rounded-3xl border border-white/15 bg-slate-950/55 p-5 shadow-2xl backdrop-blur-xl sm:p-6">
+        <div className="mt-5 rounded-3xl border border-white/15 bg-slate-950/55 p-4 shadow-2xl backdrop-blur-xl sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
@@ -396,7 +396,7 @@ export function TripPlannerLauncher() {
             onSubmit={handleSubmit}
             className="mt-5 grid gap-4 lg:grid-cols-12"
           >
-            <label className="lg:col-span-4">
+            <label className="min-w-0 lg:col-span-4">
               <span className="text-xs font-medium text-slate-300">
                 Điểm đến
               </span>
@@ -414,7 +414,7 @@ export function TripPlannerLauncher() {
               />
             </label>
 
-            <label className="lg:col-span-3">
+            <label className="min-w-0 lg:col-span-3">
               <span className="text-xs font-medium text-slate-300">
                 Ngày bắt đầu
               </span>
@@ -432,7 +432,7 @@ export function TripPlannerLauncher() {
               />
             </label>
 
-            <label className="lg:col-span-2">
+            <label className="min-w-0 lg:col-span-2">
               <span className="text-xs font-medium text-slate-300">
                 Số ngày
               </span>
@@ -460,7 +460,7 @@ export function TripPlannerLauncher() {
               </select>
             </label>
 
-            <label className="lg:col-span-3">
+            <label className="min-w-0 lg:col-span-3">
               <span className="text-xs font-medium text-slate-300">
                 Ngân sách
               </span>
@@ -511,7 +511,7 @@ export function TripPlannerLauncher() {
                             interest,
                           )
                         }
-                        className={`rounded-full border px-3.5 py-2 text-xs font-medium transition ${
+                        className={`min-h-10 rounded-full border px-3.5 py-2 text-xs font-medium transition ${
                           selected
                             ? "border-emerald-300 bg-emerald-400/20 text-emerald-100"
                             : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10"
@@ -536,7 +536,7 @@ export function TripPlannerLauncher() {
                   !destination.trim() ||
                   !startDate
                 }
-                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:bg-slate-600 disabled:text-slate-300"
+                className="min-h-11 w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:bg-slate-600 disabled:text-slate-300 sm:w-auto"
               >
                 {isSubmitting
                   ? "Đang xếp lịch..."
@@ -591,7 +591,7 @@ export function TripPlannerLauncher() {
                     </p>
                   </div>
 
-                  <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-right">
+                  <div className="w-full rounded-2xl bg-emerald-50 px-4 py-3 text-left sm:w-auto sm:text-right">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
                       Phí tham quan ước tính
                     </p>
@@ -652,7 +652,7 @@ export function TripPlannerLauncher() {
                       isSaving ||
                       Boolean(savedTripId)
                     }
-                    className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className="min-h-11 w-full rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
                   >
                     {savedTripId
                       ? "✓ Đã lưu chuyến đi"

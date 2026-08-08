@@ -77,7 +77,7 @@ function TripSummaryCard({
   const trip = post.sourceTrip;
 
   return (
-    <div className="mx-4 mt-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 sm:mx-5">
+    <div className="mx-3.5 mt-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-3.5 sm:mx-5 sm:p-4">
       <div className="flex items-start gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-lg text-white shadow-sm">
           🧳
@@ -115,7 +115,7 @@ export function SocialFeed({
 }: SocialFeedProps) {
   if (posts.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center shadow-sm sm:rounded-3xl sm:p-8">
         <p className="text-sm font-semibold text-slate-800">
           Feed tháng {currentMonth} đang chờ những chuyến đi đầu tiên.
         </p>
@@ -127,18 +127,18 @@ export function SocialFeed({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {posts.map((post) => (
         <article
           key={post.id}
           id={`post-${post.id}`}
-          className={`scroll-mt-24 overflow-hidden rounded-3xl border bg-white shadow-sm transition ${
+          className={`scroll-mt-24 overflow-hidden rounded-2xl border bg-white shadow-sm transition sm:rounded-3xl ${
             post.id === focusedPostId
-              ? "border-emerald-300 ring-2 ring-emerald-300 ring-offset-2"
+              ? "border-emerald-300 ring-2 ring-inset ring-emerald-300"
               : "border-slate-200"
           }`}
         >
-          <div className="flex items-start gap-3 p-4 sm:p-5">
+          <div className="flex items-start gap-2.5 p-3.5 sm:gap-3 sm:p-5">
             <PostAvatar post={post} />
 
             <div className="min-w-0 flex-1">
@@ -189,7 +189,7 @@ export function SocialFeed({
           </div>
 
           {post.headline || post.caption ? (
-            <div className="px-4 pb-4 sm:px-5">
+            <div className="px-3.5 pb-4 sm:px-5">
               {post.headline ? (
                 <h3 className="text-lg font-semibold leading-7 text-slate-950 sm:text-xl">
                   {post.headline}
@@ -217,11 +217,11 @@ export function SocialFeed({
           <TripSummaryCard post={post} />
 
           {post.places.length > 0 ? (
-            <div className="flex flex-wrap gap-2 px-4 pt-4 sm:px-5">
+            <div className="flex flex-wrap gap-2 px-3.5 pt-4 sm:px-5">
               {post.places.map((place) => (
                 <span
                   key={place.id}
-                  className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800"
+                  className="max-w-full break-words rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800"
                 >
                   📍 {place.name}
                   <span className="text-emerald-600">
