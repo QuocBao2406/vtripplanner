@@ -131,6 +131,8 @@ export function AdminPlaceManager({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const isEditing = Boolean(form.id);
 
@@ -338,6 +340,68 @@ export function AdminPlaceManager({
       router.refresh();
     } catch {
       setError("Không thể kết nối để xóa địa điểm.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function reviewPartnerPlace(
+    item: PlaceItem,
+    decision: "APPROVE" | "REJECT",
+  ) {
+    if (
+      decision === "REJECT" &&
+      rejectionReason.trim().length < 5
+    ) {
+      setError("Lý do từ chối cần ít nhất 5 ký tự.");
+      return;
+    }
+
+    if (
+      decision === "APPROVE" &&
+      !window.confirm(`Phê duyệt địa điểm "${item.name}"?`)
+    ) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/places/review", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          placeId: item.id,
+          decision,
+          rejectionReason:
+            decision === "REJECT" ? rejectionReason : "",
+        }),
+      });
+
+      const payload = await readPayload(response);
+
+      if (!response.ok) {
+        setError(
+          payload.message ?? "Không thể xét duyệt địa điểm Partner.",
+        );
+        return;
+      }
+
+      setMessage(
+        payload.message ??
+          (decision === "APPROVE"
+            ? "Đã phê duyệt địa điểm Partner."
+            : "Đã từ chối địa điểm Partner."),
+      );
+      setRejectingId(null);
+      setRejectionReason("");
+      router.refresh();
+    } catch {
+      setError("Không thể kết nối để xét duyệt địa điểm Partner.");
     } finally {
       setIsSubmitting(false);
     }
@@ -668,7 +732,13 @@ export function AdminPlaceManager({
 
         {initialPlaces.length > 0 ? (
           <div className="mt-3 space-y-3">
-            {initialPlaces.map((item) => (
+            {initialPlaces.map((item) => {
+              const isPartnerPending =
+                Boolean(item.partnerName) &&
+                item.verificationStatus === "PENDING";
+              const isRejecting = rejectingId === item.id;
+
+              return (
               <article
                 key={item.id}
                 className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
@@ -724,45 +794,110 @@ export function AdminPlaceManager({
                     </p>
                   </div>
 
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        startEdit(item);
-                      }}
-                      disabled={isSubmitting}
-                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      <Pencil aria-hidden="true" className="size-3.5" />
-                      Sửa
-                    </button>
+                  {isPartnerPending ? (
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          void reviewPartnerPlace(item, "APPROVE");
+                        }}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-emerald-700 px-3 text-xs font-bold text-white transition hover:bg-emerald-800 disabled:opacity-50"
+                      >
+                        <Check aria-hidden="true" className="size-3.5" />
+                        Phê duyệt
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setRejectingId(
+                            isRejecting ? null : item.id,
+                          );
+                          setRejectionReason("");
+                          setError("");
+                        }}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <X aria-hidden="true" className="size-3.5" />
+                        Từ chối
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          startEdit(item);
+                        }}
+                        disabled={isSubmitting}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        <Pencil aria-hidden="true" className="size-3.5" />
+                        Sửa
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void toggleActive(item);
-                      }}
-                      disabled={isSubmitting}
-                      className="min-h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      {item.isActive ? "Tạm ẩn" : "Kích hoạt"}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void toggleActive(item);
+                        }}
+                        disabled={isSubmitting}
+                        className="min-h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {item.isActive ? "Tạm ẩn" : "Kích hoạt"}
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void softDelete(item);
-                      }}
-                      disabled={isSubmitting}
-                      className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-100 px-3 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                    >
-                      <Trash2 aria-hidden="true" className="size-3.5" />
-                      Xóa mềm
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void softDelete(item);
+                        }}
+                        disabled={isSubmitting}
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-100 px-3 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <Trash2 aria-hidden="true" className="size-3.5" />
+                        Xóa mềm
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                {isPartnerPending && isRejecting ? (
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <label className="text-sm font-semibold text-slate-700">
+                      Lý do từ chối
+                      <textarea
+                        value={rejectionReason}
+                        maxLength={1000}
+                        rows={3}
+                        onChange={(event) => {
+                          setRejectionReason(event.target.value);
+                        }}
+                        placeholder="Nêu rõ thông tin Partner cần chỉnh sửa..."
+                        className="mt-2 w-full rounded-xl border border-red-200 px-3.5 py-3 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100"
+                      />
+                    </label>
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={
+                          isSubmitting ||
+                          rejectionReason.trim().length < 5
+                        }
+                        onClick={() => {
+                          void reviewPartnerPlace(item, "REJECT");
+                        }}
+                        className="min-h-10 rounded-xl bg-red-700 px-4 text-xs font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        Xác nhận từ chối
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </article>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
