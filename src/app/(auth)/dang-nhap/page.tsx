@@ -28,7 +28,7 @@ export default async function SignInPage({
   const user = await getCurrentUser();
 
   if (user) {
-    redirect("/tai-khoan");
+    redirect("/");
   }
 
   const parameters = await searchParams;

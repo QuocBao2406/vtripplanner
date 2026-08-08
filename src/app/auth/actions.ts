@@ -110,7 +110,7 @@ export async function signInAction(
     };
   }
 
-  redirect("/tai-khoan");
+  redirect("/");
 }
 
 export async function signUpAction(

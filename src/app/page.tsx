@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { HomeAccountNav } from "@/components/home/home-account-nav";
 import { TripPlannerLauncher } from "@/components/home/trip-planner-launcher";
 import { SocialComposerLauncher } from "@/components/social/social-composer-launcher";
 import { SocialInfiniteFeed } from "@/components/social/social-infinite-feed";
@@ -97,18 +98,7 @@ export default async function Home({
                 Cộng đồng
               </a>
               <SocialNotificationBell />
-              <Link
-                href="/dang-nhap"
-                className="whitespace-nowrap rounded-xl border border-white/25 px-3 py-2 font-semibold text-white transition hover:bg-white/10 sm:px-4 sm:py-2.5"
-              >
-                Đăng nhập
-              </Link>
-              <Link
-                href="/tai-khoan"
-                className="hidden rounded-xl bg-white px-4 py-2.5 font-semibold text-slate-950 transition hover:bg-emerald-50 sm:inline-flex"
-              >
-                Tài khoản
-              </Link>
+              <HomeAccountNav />
             </nav>
           </div>
         </header>
