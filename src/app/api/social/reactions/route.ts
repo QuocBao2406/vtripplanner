@@ -81,6 +81,8 @@ async function getPublishedPost(postId: string) {
     },
     select: {
       id: true,
+      type: true,
+      authorUserId: true,
     },
   });
 }
@@ -155,6 +157,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const type = reactionType as ReactionType;
   const userId = authorization.applicationUser.id;
+  const notificationSourceKey =
+    `reaction:${postId}:${userId}`;
 
   try {
     const reactionCount = await prisma.$transaction(async (transaction) => {
@@ -174,6 +178,31 @@ export async function POST(request: Request): Promise<NextResponse> {
           type,
         },
       });
+
+      if (
+        post.type === "USER_TRIP" &&
+        post.authorUserId &&
+        post.authorUserId !== userId
+      ) {
+        await transaction.travelNotification.upsert({
+          where: {
+            sourceKey:
+              notificationSourceKey,
+          },
+          update: {
+            reactionType: type,
+          },
+          create: {
+            userId: post.authorUserId,
+            actorUserId: userId,
+            postId,
+            type: "REACTION",
+            reactionType: type,
+            sourceKey:
+              notificationSourceKey,
+          },
+        });
+      }
 
       return transaction.travelPostReaction.count({
         where: {
@@ -255,6 +284,8 @@ export async function DELETE(request: Request): Promise<NextResponse> {
   }
 
   const userId = authorization.applicationUser.id;
+  const notificationSourceKey =
+    `reaction:${postId}:${userId}`;
 
   try {
     const reactionCount = await prisma.$transaction(async (transaction) => {
@@ -262,6 +293,14 @@ export async function DELETE(request: Request): Promise<NextResponse> {
         where: {
           postId,
           userId,
+        },
+      });
+
+      await transaction.travelNotification.deleteMany({
+        where: {
+          sourceKey:
+            notificationSourceKey,
+          actorUserId: userId,
         },
       });
 

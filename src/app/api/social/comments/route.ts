@@ -76,6 +76,8 @@ async function getPublishedPost(postId: string) {
     },
     select: {
       id: true,
+      type: true,
+      authorUserId: true,
     },
   });
 }
@@ -333,17 +335,44 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     const createdComment =
-      await prisma.travelPostComment.create({
-        data: {
-          postId,
-          userId,
-          content,
-          status: "PUBLISHED",
+      await prisma.$transaction(
+        async (transaction) => {
+          const created =
+            await transaction.travelPostComment.create({
+              data: {
+                postId,
+                userId,
+                content,
+                status: "PUBLISHED",
+              },
+              select: {
+                id: true,
+              },
+            });
+
+          if (
+            post.type === "USER_TRIP" &&
+            post.authorUserId &&
+            post.authorUserId !== userId
+          ) {
+            await transaction.travelNotification.create({
+              data: {
+                userId:
+                  post.authorUserId,
+                actorUserId: userId,
+                postId,
+                type: "COMMENT",
+                commentPreview:
+                  content.slice(0, 160),
+                sourceKey:
+                  `comment:${created.id}`,
+              },
+            });
+          }
+
+          return created;
         },
-        select: {
-          id: true,
-        },
-      });
+      );
 
     const [comment, commentCount] = await Promise.all([
       getVisibleComment(createdComment.id, userId),
@@ -443,18 +472,39 @@ export async function PATCH(request: Request): Promise<NextResponse> {
 
   try {
     const updateResult =
-      await prisma.travelPostComment.updateMany({
-        where: {
-          id: commentId,
-          postId,
-          userId,
-          status: "PUBLISHED",
-          deletedAt: null,
+      await prisma.$transaction(
+        async (transaction) => {
+          const result =
+            await transaction.travelPostComment.updateMany({
+              where: {
+                id: commentId,
+                postId,
+                userId,
+                status: "PUBLISHED",
+                deletedAt: null,
+              },
+              data: {
+                content,
+              },
+            });
+
+          if (result.count === 1) {
+            await transaction.travelNotification.updateMany({
+              where: {
+                sourceKey:
+                  `comment:${commentId}`,
+                actorUserId: userId,
+              },
+              data: {
+                commentPreview:
+                  content.slice(0, 160),
+              },
+            });
+          }
+
+          return result;
         },
-        data: {
-          content,
-        },
-      });
+      );
 
     if (updateResult.count !== 1) {
       return errorResponse(
@@ -552,18 +602,35 @@ export async function DELETE(request: Request): Promise<NextResponse> {
 
   try {
     const deleteResult =
-      await prisma.travelPostComment.updateMany({
-        where: {
-          id: commentId,
-          postId,
-          userId,
-          status: "PUBLISHED",
-          deletedAt: null,
+      await prisma.$transaction(
+        async (transaction) => {
+          const result =
+            await transaction.travelPostComment.updateMany({
+              where: {
+                id: commentId,
+                postId,
+                userId,
+                status: "PUBLISHED",
+                deletedAt: null,
+              },
+              data: {
+                deletedAt: new Date(),
+              },
+            });
+
+          if (result.count === 1) {
+            await transaction.travelNotification.deleteMany({
+              where: {
+                sourceKey:
+                  `comment:${commentId}`,
+                actorUserId: userId,
+              },
+            });
+          }
+
+          return result;
         },
-        data: {
-          deletedAt: new Date(),
-        },
-      });
+      );
 
     if (deleteResult.count !== 1) {
       return errorResponse(

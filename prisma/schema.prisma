@@ -224,6 +224,8 @@ model User {
   travelPostReactions         TravelPostReaction[]
   travelPostComments          TravelPostComment[]
   travelPostSaves             TravelPostSave[]
+  receivedTravelNotifications TravelNotification[] @relation("TravelNotificationRecipient")
+  sentTravelNotifications     TravelNotification[] @relation("TravelNotificationActor")
   auditLogs                   AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
@@ -1267,13 +1269,14 @@ model TravelPost {
   updatedAt    DateTime         @updatedAt @db.Timestamptz(6)
   deletedAt    DateTime?        @db.Timestamptz(6)
 
-  author     User?                @relation("TravelPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
-  sourceTrip Trip?                @relation("TravelPostSourceTrip", fields: [sourceTripId], references: [id], onDelete: SetNull)
-  media      TravelPostMedia[]
-  places     TravelPostPlace[]
-  reactions  TravelPostReaction[]
-  comments   TravelPostComment[]
-  saves      TravelPostSave[]
+  author        User?                @relation("TravelPostAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  sourceTrip    Trip?                @relation("TravelPostSourceTrip", fields: [sourceTripId], references: [id], onDelete: SetNull)
+  media         TravelPostMedia[]
+  places        TravelPostPlace[]
+  reactions     TravelPostReaction[]
+  comments      TravelPostComment[]
+  saves         TravelPostSave[]
+  notifications TravelNotification[]
 
   @@index([authorUserId, createdAt])
   @@index([status, publishedAt])
@@ -1368,4 +1371,31 @@ model TravelPostSave {
   @@unique([postId, userId])
   @@index([userId, createdAt])
   @@map("travel_post_saves")
+}
+
+enum TravelNotificationType {
+  REACTION
+  COMMENT
+}
+
+model TravelNotification {
+  id             String                  @id @default(uuid()) @db.Uuid
+  userId         String                  @db.Uuid
+  actorUserId    String                  @db.Uuid
+  postId         String                  @db.Uuid
+  type           TravelNotificationType
+  reactionType   TravelPostReactionType?
+  commentPreview String?                 @db.VarChar(160)
+  sourceKey      String                  @unique @db.VarChar(200)
+  readAt         DateTime?               @db.Timestamptz(6)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                @updatedAt @db.Timestamptz(6)
+
+  user  User       @relation("TravelNotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User       @relation("TravelNotificationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  post  TravelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([postId, createdAt])
+  @@map("travel_notifications")
 }

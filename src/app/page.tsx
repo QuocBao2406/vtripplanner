@@ -3,6 +3,7 @@ import Link from "next/link";
 import { TripPlannerLauncher } from "@/components/home/trip-planner-launcher";
 import { SocialComposerLauncher } from "@/components/social/social-composer-launcher";
 import { SocialInfiniteFeed } from "@/components/social/social-infinite-feed";
+import { SocialNotificationBell } from "@/components/social/social-notification-bell";
 import { getPublicSocialFeed } from "@/lib/social-feed/public-feed";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export default async function Home() {
               >
                 Cộng đồng
               </a>
+              <SocialNotificationBell />
               <Link
                 href="/dang-nhap"
                 className="rounded-xl border border-white/25 px-4 py-2.5 font-semibold text-white transition hover:bg-white/10"
