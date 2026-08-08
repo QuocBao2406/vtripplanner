@@ -226,6 +226,7 @@ model User {
   travelPostSaves             TravelPostSave[]
   receivedTravelNotifications TravelNotification[] @relation("TravelNotificationRecipient")
   sentTravelNotifications     TravelNotification[] @relation("TravelNotificationActor")
+  travelPostHides             TravelPostHide[]
   auditLogs                   AuditLog[]           @relation("AuditLogActor")
 
   @@index([isActive])
@@ -1277,6 +1278,7 @@ model TravelPost {
   comments      TravelPostComment[]
   saves         TravelPostSave[]
   notifications TravelNotification[]
+  hides         TravelPostHide[]
 
   @@index([authorUserId, createdAt])
   @@index([status, publishedAt])
@@ -1398,4 +1400,18 @@ model TravelNotification {
   @@index([userId, readAt, createdAt])
   @@index([postId, createdAt])
   @@map("travel_notifications")
+}
+
+model TravelPostHide {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  post TravelPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+  @@map("travel_post_hides")
 }

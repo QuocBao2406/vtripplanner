@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -72,11 +73,23 @@ export async function GET(
   }
 
   try {
+    const currentUser =
+      await getCurrentUser();
     const newPost =
       await prisma.travelPost.findFirst({
         where: {
           status: "PUBLISHED",
           deletedAt: null,
+          ...(currentUser
+            ? {
+                hides: {
+                  none: {
+                    userId:
+                      currentUser.id,
+                  },
+                },
+              }
+            : {}),
           createdAt: {
             gt: snapshotAt,
           },

@@ -23,6 +23,8 @@ type SocialInfiniteFeedProps = {
 
 const NEW_POST_POLL_INTERVAL_MS =
   60_000;
+const POST_HIDDEN_EVENT =
+  "vtrip:travel-post-hidden";
 
 type FeedApiPost =
   Omit<
@@ -294,6 +296,45 @@ export function SocialInfiniteFeed({
   );
 
   useEffect(() => {
+    const handlePostHidden = (
+      event: Event,
+    ) => {
+      const customEvent =
+        event as CustomEvent<{
+          postId?: string;
+        }>;
+      const postId =
+        customEvent.detail?.postId;
+
+      if (
+        typeof postId !==
+        "string"
+      ) {
+        return;
+      }
+
+      setPosts((currentPosts) =>
+        currentPosts.filter(
+          (post) =>
+            post.id !== postId,
+        ),
+      );
+    };
+
+    window.addEventListener(
+      POST_HIDDEN_EVENT,
+      handlePostHidden,
+    );
+
+    return () => {
+      window.removeEventListener(
+        POST_HIDDEN_EVENT,
+        handlePostHidden,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     const intervalId =
       window.setInterval(() => {
         void checkForNewPosts();
@@ -393,6 +434,7 @@ export function SocialInfiniteFeed({
         focusedPostId={
           focusedPost?.id ?? null
         }
+        enableHideActions
       />
 
       <div

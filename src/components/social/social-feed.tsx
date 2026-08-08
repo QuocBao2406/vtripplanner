@@ -1,5 +1,6 @@
 import { SocialPostMediaGallery } from "@/components/social/social-post-media-gallery";
 import { SocialPostActions } from "@/components/social/social-post-actions";
+import { SocialPostHideAction } from "@/components/social/social-post-hide-action";
 import { SocialPostOwnerActions } from "@/components/social/social-post-owner-actions";
 import type { PublicSocialFeedPost } from "@/lib/social-feed/public-feed";
 
@@ -7,6 +8,7 @@ type SocialFeedProps = {
   currentMonth: number;
   posts: PublicSocialFeedPost[];
   focusedPostId?: string | null;
+  enableHideActions?: boolean;
 };
 
 const TYPE_LABELS: Record<
@@ -109,6 +111,7 @@ export function SocialFeed({
   currentMonth,
   posts,
   focusedPostId = null,
+  enableHideActions = false,
 }: SocialFeedProps) {
   if (posts.length === 0) {
     return (
@@ -166,14 +169,23 @@ export function SocialFeed({
               </div>
             </div>
 
-            {post.viewerCanManage ? (
-              <SocialPostOwnerActions
-                postId={post.id}
-                initialCaption={
-                  post.caption ?? ""
-                }
-              />
-            ) : null}
+            <div className="flex shrink-0 items-start gap-1">
+              {post.viewerCanManage ? (
+                <SocialPostOwnerActions
+                  postId={post.id}
+                  initialCaption={
+                    post.caption ?? ""
+                  }
+                />
+              ) : null}
+
+              {enableHideActions &&
+              post.viewerCanHide ? (
+                <SocialPostHideAction
+                  postId={post.id}
+                />
+              ) : null}
+            </div>
           </div>
 
           {post.headline || post.caption ? (

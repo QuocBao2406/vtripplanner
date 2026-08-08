@@ -55,6 +55,7 @@ export type PublicSocialFeedPost = {
   sourceAvatarUrl: string | null;
   isSystemPost: boolean;
   viewerCanManage: boolean;
+  viewerCanHide?: boolean;
   coverImageUrl: string | null;
   coverImageAlt: string;
   mediaType: "IMAGE" | "VIDEO" | null;
@@ -751,6 +752,7 @@ function getBoundaryFromCursor(
 async function findFeedWindow(
   currentMonth: number,
   snapshotAt: Date,
+  currentUserId: string | null,
   boundary: FeedWindowBoundary | null,
   take: number,
 ) {
@@ -759,6 +761,16 @@ async function findFeedWindow(
       where: {
         status: "PUBLISHED",
         deletedAt: null,
+        ...(currentUserId
+          ? {
+              hides: {
+                none: {
+                  userId:
+                    currentUserId,
+                },
+              },
+            }
+          : {}),
         createdAt: {
           lte: snapshotAt,
         },
@@ -812,6 +824,16 @@ async function findFeedWindow(
     where: {
       status: "PUBLISHED",
       deletedAt: null,
+      ...(currentUserId
+        ? {
+            hides: {
+              none: {
+                userId:
+                  currentUserId,
+              },
+            },
+          }
+        : {}),
       createdAt: {
         lte: snapshotAt,
       },
@@ -844,6 +866,7 @@ async function findFeedWindow(
 async function findFeedPostsByIds(
   currentMonth: number,
   snapshotAt: Date,
+  currentUserId: string | null,
   ids: string[],
 ) {
   return prisma.travelPost.findMany({
@@ -853,6 +876,16 @@ async function findFeedPostsByIds(
       },
       status: "PUBLISHED",
       deletedAt: null,
+      ...(currentUserId
+        ? {
+            hides: {
+              none: {
+                userId:
+                  currentUserId,
+              },
+            },
+          }
+        : {}),
       createdAt: {
         lte: snapshotAt,
       },
@@ -1046,6 +1079,10 @@ async function mapPublicFeedPosts(
         post.type === "USER_TRIP" &&
         currentUserId ===
           post.author?.id,
+      viewerCanHide:
+        Boolean(currentUserId) &&
+        currentUserId !==
+          post.author?.id,
       coverImageUrl:
         coverMedia?.url ?? null,
       coverImageAlt:
@@ -1111,6 +1148,7 @@ async function loadRankedFeedWindow(
     findFeedWindow(
       currentMonth,
       snapshotAt,
+      currentUserId,
       boundary,
       candidateLimit + 1,
     ),
@@ -1229,6 +1267,7 @@ export async function getPublicSocialFeedPage(
       await findFeedPostsByIds(
         currentMonth,
         snapshotAt,
+        currentUserId,
         decodedCursor.remainingIds,
       );
     const remainingById =
@@ -1376,6 +1415,7 @@ export async function getPublicSocialFeedPostById(
     await findFeedPostsByIds(
       currentMonth,
       new Date(),
+      currentUser?.id ?? null,
       [postId],
     );
   const posts =
