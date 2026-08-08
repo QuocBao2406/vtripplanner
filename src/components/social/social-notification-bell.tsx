@@ -7,6 +7,7 @@ import {
 
 type NotificationItem = {
   id: string;
+  postId: string;
   type: "REACTION" | "COMMENT";
   reactionType:
     | "LIKE"
@@ -248,11 +249,14 @@ export function SocialNotificationBell() {
             <div className="max-h-96 overflow-y-auto">
               {notifications.map(
                 (notification) => (
-                  <div
+                  <a
                     key={
                       notification.id
                     }
-                    className="border-b border-slate-100 px-4 py-3 last:border-b-0"
+                    href={`/?focusPost=${encodeURIComponent(
+                      notification.postId,
+                    )}#cong-dong`}
+                    className="block border-b border-slate-100 px-4 py-3 transition hover:bg-emerald-50/70 last:border-b-0"
                   >
                     <p className="text-sm leading-5 text-slate-800">
                       {getNotificationText(
@@ -264,7 +268,7 @@ export function SocialNotificationBell() {
                         notification.createdAt,
                       )}
                     </p>
-                  </div>
+                  </a>
                 ),
               )}
             </div>

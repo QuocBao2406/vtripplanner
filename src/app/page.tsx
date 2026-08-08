@@ -4,7 +4,10 @@ import { TripPlannerLauncher } from "@/components/home/trip-planner-launcher";
 import { SocialComposerLauncher } from "@/components/social/social-composer-launcher";
 import { SocialInfiniteFeed } from "@/components/social/social-infinite-feed";
 import { SocialNotificationBell } from "@/components/social/social-notification-bell";
-import { getPublicSocialFeed } from "@/lib/social-feed/public-feed";
+import {
+  getPublicSocialFeed,
+  getPublicSocialFeedPostById,
+} from "@/lib/social-feed/public-feed";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +20,50 @@ function getVietnamCurrentMonth(): number {
   );
 }
 
-export default async function Home() {
-  const currentMonth = getVietnamCurrentMonth();
-  const feed = await getPublicSocialFeed(currentMonth);
+type HomeSearchParams = Promise<
+  Record<
+    string,
+    string | string[] | undefined
+  >
+>;
+
+function getSingleSearchParam(
+  value:
+    | string
+    | string[]
+    | undefined,
+): string | null {
+  return typeof value === "string"
+    ? value
+    : null;
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: HomeSearchParams;
+}) {
+  const currentMonth =
+    getVietnamCurrentMonth();
+  const resolvedSearchParams =
+    await searchParams;
+  const focusPostId =
+    getSingleSearchParam(
+      resolvedSearchParams.focusPost,
+    );
+
+  const [feed, focusedPost] =
+    await Promise.all([
+      getPublicSocialFeed(
+        currentMonth,
+      ),
+      focusPostId
+        ? getPublicSocialFeedPostById(
+            currentMonth,
+            focusPostId,
+          )
+        : Promise.resolve(null),
+    ]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
@@ -162,6 +206,7 @@ export default async function Home() {
                 key={feed.sessionKey}
                 currentMonth={feed.currentMonth}
                 snapshotAt={feed.sessionKey}
+                focusedPost={focusedPost}
                 initialPosts={feed.posts}
                 initialCursor={feed.nextCursor}
                 initialHasMore={feed.hasMore}

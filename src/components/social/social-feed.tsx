@@ -6,6 +6,7 @@ import type { PublicSocialFeedPost } from "@/lib/social-feed/public-feed";
 type SocialFeedProps = {
   currentMonth: number;
   posts: PublicSocialFeedPost[];
+  focusedPostId?: string | null;
 };
 
 const TYPE_LABELS: Record<
@@ -107,6 +108,7 @@ function TripSummaryCard({
 export function SocialFeed({
   currentMonth,
   posts,
+  focusedPostId = null,
 }: SocialFeedProps) {
   if (posts.length === 0) {
     return (
@@ -126,7 +128,12 @@ export function SocialFeed({
       {posts.map((post) => (
         <article
           key={post.id}
-          className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+          id={`post-${post.id}`}
+          className={`scroll-mt-24 overflow-hidden rounded-3xl border bg-white shadow-sm transition ${
+            post.id === focusedPostId
+              ? "border-emerald-300 ring-2 ring-emerald-300 ring-offset-2"
+              : "border-slate-200"
+          }`}
         >
           <div className="flex items-start gap-3 p-4 sm:p-5">
             <PostAvatar post={post} />

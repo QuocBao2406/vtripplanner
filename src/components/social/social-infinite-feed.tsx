@@ -13,6 +13,8 @@ import type { PublicSocialFeedPost } from "@/lib/social-feed/public-feed";
 type SocialInfiniteFeedProps = {
   currentMonth: number;
   snapshotAt: string;
+  focusedPost:
+    PublicSocialFeedPost | null;
   initialPosts:
     PublicSocialFeedPost[];
   initialCursor: string | null;
@@ -78,12 +80,26 @@ function hydrateApiPost(
 export function SocialInfiniteFeed({
   currentMonth,
   snapshotAt,
+  focusedPost,
   initialPosts,
   initialCursor,
   initialHasMore,
 }: SocialInfiniteFeedProps) {
   const [posts, setPosts] =
-    useState(initialPosts);
+    useState(() => {
+      if (!focusedPost) {
+        return initialPosts;
+      }
+
+      return [
+        focusedPost,
+        ...initialPosts.filter(
+          (post) =>
+            post.id !==
+            focusedPost.id,
+        ),
+      ];
+    });
   const [cursor, setCursor] =
     useState(initialCursor);
   const [hasMore, setHasMore] =
@@ -374,6 +390,9 @@ export function SocialInfiniteFeed({
       <SocialFeed
         currentMonth={currentMonth}
         posts={posts}
+        focusedPostId={
+          focusedPost?.id ?? null
+        }
       />
 
       <div

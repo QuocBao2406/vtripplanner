@@ -111,6 +111,7 @@ export async function GET(): Promise<NextResponse> {
         take: MAX_NOTIFICATIONS,
         select: {
           id: true,
+          postId: true,
           type: true,
           reactionType: true,
           commentPreview: true,
@@ -137,6 +138,7 @@ export async function GET(): Promise<NextResponse> {
         notifications.map(
           (notification) => ({
             id: notification.id,
+            postId: notification.postId,
             type: notification.type,
             reactionType:
               notification.reactionType,

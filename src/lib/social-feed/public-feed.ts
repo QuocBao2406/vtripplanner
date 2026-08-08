@@ -1360,6 +1360,33 @@ export async function getPublicSocialFeedPage(
   };
 }
 
+export async function getPublicSocialFeedPostById(
+  requestedMonth: number,
+  postId: string,
+): Promise<PublicSocialFeedPost | null> {
+  if (!UUID_PATTERN.test(postId)) {
+    return null;
+  }
+
+  const currentMonth =
+    normalizeMonth(requestedMonth);
+  const currentUser =
+    await getCurrentUser();
+  const rows =
+    await findFeedPostsByIds(
+      currentMonth,
+      new Date(),
+      [postId],
+    );
+  const posts =
+    await mapPublicFeedPosts(
+      rows,
+      currentUser?.id ?? null,
+    );
+
+  return posts[0] ?? null;
+}
+
 export async function getPublicSocialFeed(
   requestedMonth: number,
 ): Promise<PublicSocialFeedPage> {
