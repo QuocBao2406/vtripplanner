@@ -221,6 +221,17 @@ export function HomeAccountMenu({
               }}
             />
             <ComingSoonItem />
+
+            {!isAdmin && !isPartner ? (
+              <MenuLink
+                href="/dang-ky-doi-tac"
+                icon={Building2}
+                label="Đăng ký trở thành đối tác"
+                onNavigate={() => {
+                  setIsOpen(false);
+                }}
+              />
+            ) : null}
           </div>
 
           {isAdmin || isPartner ? (

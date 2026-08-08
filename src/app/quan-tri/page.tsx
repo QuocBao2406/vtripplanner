@@ -415,6 +415,8 @@ export default async function AdminPage() {
               title="Đối tác"
               description="Duyệt đăng ký đối tác và theo dõi trạng thái hoạt động."
               icon={Building2}
+              badge="Quản lý"
+              href="/quan-tri/doi-tac"
             />
             <ModuleCard
               title="Khu vực du lịch"
