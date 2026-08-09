@@ -3,6 +3,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
+  BadgePercent,
   Bookmark,
   Building2,
   ChevronDown,
@@ -54,23 +55,6 @@ function MenuLink({
       </span>
       <span className="min-w-0 flex-1">{label}</span>
     </Link>
-  );
-}
-
-function ComingSoonItem() {
-  return (
-    <div
-      aria-disabled="true"
-      className="flex min-h-12 cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-400"
-    >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-        <Ticket aria-hidden="true" className="size-4.5" />
-      </span>
-      <span className="min-w-0 flex-1">Voucher của tôi</span>
-      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-        Sắp có
-      </span>
-    </div>
   );
 }
 
@@ -220,7 +204,22 @@ export function HomeAccountMenu({
                 setIsOpen(false);
               }}
             />
-            <ComingSoonItem />
+            <MenuLink
+              href="/uu-dai"
+              icon={BadgePercent}
+              label="Khám phá ưu đãi"
+              onNavigate={() => {
+                setIsOpen(false);
+              }}
+            />
+            <MenuLink
+              href="/voucher-cua-toi"
+              icon={Ticket}
+              label="Voucher của tôi"
+              onNavigate={() => {
+                setIsOpen(false);
+              }}
+            />
 
             {!isAdmin && !isPartner ? (
               <MenuLink

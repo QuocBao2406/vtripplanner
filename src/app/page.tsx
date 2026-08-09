@@ -97,6 +97,12 @@ export default async function Home({
               >
                 Cộng đồng
               </a>
+              <Link
+                href="/uu-dai"
+                className="hidden rounded-xl px-3 py-2 text-slate-100 transition hover:bg-white/10 hover:text-white md:inline-flex"
+              >
+                Ưu đãi
+              </Link>
               <SocialNotificationBell />
               <HomeAccountNav />
             </nav>
