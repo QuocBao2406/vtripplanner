@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AdminPlaceManager } from "@/components/admin/admin-place-manager";
 import { AppRole } from "@/generated/prisma/enums";
 import { requireRole } from "@/lib/auth/authorization";
+import { getPublicPlaceImageUrl } from "@/lib/place-media/public-url";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -68,6 +69,24 @@ export default async function AdminPlacePage() {
         partner: {
           select: {
             name: true,
+          },
+        },
+        images: {
+          orderBy: [
+            {
+              isCover: "desc",
+            },
+            {
+              sortOrder: "asc",
+            },
+          ],
+          take: 8,
+          select: {
+            id: true,
+            storagePath: true,
+            altText: true,
+            isCover: true,
+            sortOrder: true,
           },
         },
       },
@@ -184,6 +203,25 @@ export default async function AdminPlacePage() {
             verificationStatus: place.verificationStatus,
             isActive: place.isActive,
             partnerName: place.partner?.name ?? "",
+            images: place.images.flatMap((image) => {
+              const url = getPublicPlaceImageUrl(
+                image.storagePath,
+              );
+
+              return url
+                ? [
+                    {
+                      id: image.id,
+                      url,
+                      altText:
+                        image.altText ??
+                        `Ảnh ${place.name}`,
+                      isCover: image.isCover,
+                      sortOrder: image.sortOrder,
+                    },
+                  ]
+                : [];
+            }),
             updatedAt: place.updatedAt.toISOString(),
           }))}
         />

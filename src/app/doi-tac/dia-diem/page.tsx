@@ -9,6 +9,7 @@ import {
   PartnerApprovalStatus,
 } from "@/generated/prisma/enums";
 import { requireRole } from "@/lib/auth/authorization";
+import { getPublicPlaceImageUrl } from "@/lib/place-media/public-url";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -83,6 +84,24 @@ export default async function PartnerPlacesPage() {
         district: {
           select: {
             name: true,
+          },
+        },
+        images: {
+          orderBy: [
+            {
+              isCover: "desc",
+            },
+            {
+              sortOrder: "asc",
+            },
+          ],
+          take: 8,
+          select: {
+            id: true,
+            storagePath: true,
+            altText: true,
+            isCover: true,
+            sortOrder: true,
           },
         },
       },
@@ -191,6 +210,25 @@ export default async function PartnerPlacesPage() {
             submittedAt: place.submittedAt?.toISOString() ?? null,
             reviewedAt: place.reviewedAt?.toISOString() ?? null,
             isActive: place.isActive,
+            images: place.images.flatMap((image) => {
+              const url = getPublicPlaceImageUrl(
+                image.storagePath,
+              );
+
+              return url
+                ? [
+                    {
+                      id: image.id,
+                      url,
+                      altText:
+                        image.altText ??
+                        `Ảnh ${place.name}`,
+                      isCover: image.isCover,
+                      sortOrder: image.sortOrder,
+                    },
+                  ]
+                : [];
+            }),
             updatedAt: place.updatedAt.toISOString(),
           }))}
         />

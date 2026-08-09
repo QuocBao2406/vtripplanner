@@ -1083,7 +1083,7 @@ export function TripPlannerLauncher({
                           (activity) => (
                             <article
                               key={`${day.date}-${activity.slot}-${activity.placeId}`}
-                              className="grid overflow-hidden rounded-2xl border border-slate-200 md:grid-cols-[150px_1fr]"
+                              className="overflow-hidden rounded-2xl border border-slate-200 bg-white md:grid md:grid-cols-[220px_minmax(0,1fr)]"
                             >
                               {activity.imageUrl ? (
                                 <div
@@ -1091,13 +1091,13 @@ export function TripPlannerLauncher({
                                   aria-label={
                                     activity.placeName
                                   }
-                                  className="min-h-32 bg-slate-100 bg-cover bg-center"
+                                  className="aspect-[3/2] w-full bg-slate-100 bg-cover bg-center md:aspect-auto md:min-h-[190px]"
                                   style={{
                                     backgroundImage: `url("${activity.imageUrl}")`,
                                   }}
                                 />
                               ) : (
-                                <div className="flex min-h-32 items-center justify-center bg-slate-100 text-3xl">
+                                <div className="flex aspect-[3/2] w-full items-center justify-center bg-slate-100 text-3xl md:aspect-auto md:min-h-[190px]">
                                   📍
                                 </div>
                               )}

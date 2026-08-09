@@ -14,6 +14,12 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import {
+  PlaceMediaEditor,
+  type PlaceMediaItem,
+  uploadPlaceMediaFiles,
+} from "@/components/place/place-media-editor";
+
 type CategoryItem = {
   id: string;
   name: string;
@@ -52,6 +58,7 @@ type PartnerPlaceItem = {
   submittedAt: string | null;
   reviewedAt: string | null;
   isActive: boolean;
+  images: PlaceMediaItem[];
   updatedAt: string;
 };
 
@@ -79,6 +86,9 @@ type PlaceForm = {
 
 type ApiResponse = {
   message?: string;
+  place?: {
+    id: string;
+  };
 };
 
 function makeEmptyForm(
@@ -184,8 +194,17 @@ export function PartnerPlaceManager({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [pendingMediaFiles, setPendingMediaFiles] = useState<File[]>([]);
+  const [pendingCoverIndex, setPendingCoverIndex] = useState<number | null>(null);
 
   const isEditing = Boolean(form.id);
+  const editingPlace = useMemo(
+    () =>
+      form.id
+        ? initialPlaces.find((item) => item.id === form.id) ?? null
+        : null,
+    [form.id, initialPlaces],
+  );
 
   const selectedProvince = useMemo(
     () =>
@@ -207,6 +226,8 @@ export function PartnerPlaceManager({
     setForm(makeEmptyForm(categories, provinces));
     setMessage("");
     setError("");
+    setPendingMediaFiles([]);
+    setPendingCoverIndex(null);
   }
 
   function startEdit(item: PartnerPlaceItem) {
@@ -235,6 +256,8 @@ export function PartnerPlaceManager({
     });
     setMessage("");
     setError("");
+    setPendingMediaFiles([]);
+    setPendingCoverIndex(null);
     window.scrollTo({
       top: 0,
       behavior: "smooth",
@@ -302,11 +325,45 @@ export function PartnerPlaceManager({
         return;
       }
 
+      const savedPlaceId =
+        payload.place?.id ?? form.id;
+
+      if (
+        !isEditing &&
+        savedPlaceId &&
+        pendingMediaFiles.length > 0
+      ) {
+        const mediaResult =
+          await uploadPlaceMediaFiles({
+            placeId: savedPlaceId,
+            files: pendingMediaFiles,
+            coverIndex: pendingCoverIndex,
+          });
+
+        if (!mediaResult.ok) {
+          setMessage(
+            payload.message ??
+              "Đã gửi hồ sơ địa điểm.",
+          );
+          setError(
+            `Hồ sơ đã được tạo nhưng ảnh chưa tải được: ${mediaResult.message}`,
+          );
+          setForm((current) => ({
+            ...current,
+            id: savedPlaceId,
+          }));
+          router.refresh();
+          return;
+        }
+      }
+
       setMessage(
         payload.message ??
           "Đã gửi địa điểm để ADMIN xét duyệt.",
       );
       setForm(makeEmptyForm(categories, provinces));
+      setPendingMediaFiles([]);
+      setPendingCoverIndex(null);
       router.refresh();
     } catch {
       setError("Không thể kết nối để gửi địa điểm.");
@@ -595,6 +652,24 @@ export function PartnerPlaceManager({
             </div>
           </details>
 
+          <PlaceMediaEditor
+            placeId={form.id}
+            placeName={form.name}
+            existingImages={
+              editingPlace?.images ?? []
+            }
+            disabled={isSubmitting}
+            pendingFiles={pendingMediaFiles}
+            pendingCoverIndex={pendingCoverIndex}
+            onPendingFilesChange={setPendingMediaFiles}
+            onPendingCoverIndexChange={setPendingCoverIndex}
+            accent="sky"
+          />
+
+          <p className="rounded-xl bg-sky-50 px-3 py-2.5 text-xs leading-5 text-sky-800">
+            Ảnh bạn gửi là một phần của hồ sơ Place và sẽ được ADMIN xem cùng thông tin địa điểm trước khi phê duyệt.
+          </p>
+
           <button
             type="submit"
             disabled={!canSubmit}
@@ -632,7 +707,22 @@ export function PartnerPlaceManager({
                 className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 flex-1 gap-3">
+                    {item.images[0] ? (
+                      <div
+                        role="img"
+                        aria-label={item.images[0].altText}
+                        className="hidden aspect-[3/2] w-28 shrink-0 rounded-xl bg-slate-100 bg-cover bg-center sm:block"
+                        style={{
+                          backgroundImage: `url("${item.images[0].url}")`,
+                        }}
+                      />
+                    ) : (
+                      <div className="hidden aspect-[3/2] w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl sm:flex">
+                        📍
+                      </div>
+                    )}
+                    <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <MapPinned
                         aria-hidden="true"
@@ -685,6 +775,7 @@ export function PartnerPlaceManager({
                         ? ` · Xét duyệt: ${formatTime(item.reviewedAt)}`
                         : ""}
                     </p>
+                    </div>
                   </div>
 
                   <div className="shrink-0">

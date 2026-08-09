@@ -12,6 +12,12 @@ import {
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import {
+  PlaceMediaEditor,
+  type PlaceMediaItem,
+  uploadPlaceMediaFiles,
+} from "@/components/place/place-media-editor";
+
 type CategoryItem = {
   id: string;
   name: string;
@@ -51,6 +57,7 @@ type PlaceItem = {
   verificationStatus: string;
   isActive: boolean;
   partnerName: string;
+  images: PlaceMediaItem[];
   updatedAt: string;
 };
 
@@ -81,6 +88,9 @@ type PlaceForm = {
 
 type ApiResponse = {
   message?: string;
+  place?: {
+    id: string;
+  };
 };
 
 function makeEmptyForm(
@@ -133,8 +143,17 @@ export function AdminPlaceManager({
   const [error, setError] = useState("");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [pendingMediaFiles, setPendingMediaFiles] = useState<File[]>([]);
+  const [pendingCoverIndex, setPendingCoverIndex] = useState<number | null>(null);
 
   const isEditing = Boolean(form.id);
+  const editingPlace = useMemo(
+    () =>
+      form.id
+        ? initialPlaces.find((item) => item.id === form.id) ?? null
+        : null,
+    [form.id, initialPlaces],
+  );
 
   const selectedProvince = useMemo(
     () =>
@@ -155,6 +174,8 @@ export function AdminPlaceManager({
     setForm(makeEmptyForm(categories, provinces));
     setMessage("");
     setError("");
+    setPendingMediaFiles([]);
+    setPendingCoverIndex(null);
   }
 
   function startEdit(item: PlaceItem) {
@@ -178,6 +199,8 @@ export function AdminPlaceManager({
     });
     setMessage("");
     setError("");
+    setPendingMediaFiles([]);
+    setPendingCoverIndex(null);
     window.scrollTo({
       top: 0,
       behavior: "smooth",
@@ -238,6 +261,38 @@ export function AdminPlaceManager({
         return;
       }
 
+      const savedPlaceId =
+        payload.place?.id ?? form.id;
+
+      if (
+        !isEditing &&
+        savedPlaceId &&
+        pendingMediaFiles.length > 0
+      ) {
+        const mediaResult =
+          await uploadPlaceMediaFiles({
+            placeId: savedPlaceId,
+            files: pendingMediaFiles,
+            coverIndex: pendingCoverIndex,
+          });
+
+        if (!mediaResult.ok) {
+          setMessage(
+            payload.message ??
+              "Đã tạo địa điểm.",
+          );
+          setError(
+            `Thông tin địa điểm đã lưu nhưng ảnh chưa tải được: ${mediaResult.message}`,
+          );
+          setForm((current) => ({
+            ...current,
+            id: savedPlaceId,
+          }));
+          router.refresh();
+          return;
+        }
+      }
+
       setMessage(
         payload.message ??
           (isEditing
@@ -245,6 +300,8 @@ export function AdminPlaceManager({
             : "Đã tạo địa điểm."),
       );
       setForm(makeEmptyForm(categories, provinces));
+      setPendingMediaFiles([]);
+      setPendingCoverIndex(null);
       router.refresh();
     } catch {
       setError("Không thể kết nối để lưu địa điểm.");
@@ -683,6 +740,20 @@ export function AdminPlaceManager({
             </div>
           </details>
 
+          <PlaceMediaEditor
+            placeId={form.id}
+            placeName={form.name}
+            existingImages={
+              editingPlace?.images ?? []
+            }
+            disabled={isSubmitting}
+            pendingFiles={pendingMediaFiles}
+            pendingCoverIndex={pendingCoverIndex}
+            onPendingFilesChange={setPendingMediaFiles}
+            onPendingCoverIndexChange={setPendingCoverIndex}
+            accent="violet"
+          />
+
           <label className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-700">
             <input
               type="checkbox"
@@ -744,7 +815,22 @@ export function AdminPlaceManager({
                 className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 flex-1 gap-3">
+                    {item.images[0] ? (
+                      <div
+                        role="img"
+                        aria-label={item.images[0].altText}
+                        className="hidden aspect-[3/2] w-28 shrink-0 rounded-xl bg-slate-100 bg-cover bg-center sm:block"
+                        style={{
+                          backgroundImage: `url("${item.images[0].url}")`,
+                        }}
+                      />
+                    ) : (
+                      <div className="hidden aspect-[3/2] w-28 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl sm:flex">
+                        📍
+                      </div>
+                    )}
+                    <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <MapPinned
                         aria-hidden="true"
@@ -792,6 +878,7 @@ export function AdminPlaceManager({
                         ? ` · Partner: ${item.partnerName}`
                         : " · Nguồn hệ thống/Admin"}
                     </p>
+                    </div>
                   </div>
 
                   {isPartnerPending ? (
@@ -862,6 +949,21 @@ export function AdminPlaceManager({
                     </div>
                   )}
                 </div>
+
+                <details className="mt-4 border-t border-slate-100 pt-3">
+                  <summary className="cursor-pointer text-xs font-bold text-violet-700">
+                    Quản lý ảnh · {item.images.length}/8
+                  </summary>
+                  <div className="mt-3">
+                    <PlaceMediaEditor
+                      placeId={item.id}
+                      placeName={item.name}
+                      existingImages={item.images}
+                      disabled={isSubmitting}
+                      accent="violet"
+                    />
+                  </div>
+                </details>
 
                 {isPartnerPending && isRejecting ? (
                   <div className="mt-4 border-t border-slate-100 pt-4">
