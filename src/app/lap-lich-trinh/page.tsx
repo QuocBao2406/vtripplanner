@@ -55,7 +55,9 @@ export default function TripPlannerPage() {
               Chọn điểm xuất phát, điểm đến, ngày và giờ khởi hành, phương
               tiện, số người và tổng ngân sách. Hệ thống sẽ tính ETA, quy đổi
               ngân sách/người/ngày rồi ưu tiên các địa điểm và mức chi tiêu phù
-              hợp trước khi tạo lịch trình.
+              hợp trước khi tạo lịch trình. Sau khi có preview, bạn có thể mở
+              draft riêng để thay, thêm, xóa và đổi thứ tự địa điểm trước khi
+              xác nhận lưu.
             </p>
           </div>
 
@@ -71,6 +73,8 @@ export default function TripPlannerPage() {
           khả dụng, VTripPlanner dùng bộ ước tính nội bộ. Dự toán ngân sách ở
           bước này là mô hình MVP: phí hoạt động lấy từ database, còn di chuyển,
           ăn uống và lưu trú dùng định mức nội bộ minh bạch để hỗ trợ xếp hạng.
+          Draft tùy chỉnh chỉ nằm trong tab trình duyệt cho đến khi bạn xác nhận
+          lưu; Trip đã lưu vẫn là snapshot và không chỉnh sửa trực tiếp.
         </div>
       </footer>
     </main>

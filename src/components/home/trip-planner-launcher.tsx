@@ -5,6 +5,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
+
+import { TRIP_DRAFT_STORAGE_KEY } from "@/lib/trip-planner/draft-itinerary";
 
 const INTEREST_OPTIONS = [
   "Khám phá cảnh đẹp",
@@ -114,17 +117,6 @@ type PlanApiResponse = {
   availableDestinations?: string[];
 };
 
-type SaveTripApiResponse = {
-  ok?: boolean;
-  savedTrip?: {
-    id: string;
-    title: string;
-    status: string;
-    dayCount: number;
-    activityCount: number;
-  };
-  message?: string;
-};
 
 const TRANSPORT_OPTIONS: Record<
   TripTransportMode,
@@ -268,6 +260,7 @@ export function TripPlannerLauncher({
 }: {
   pageMode?: boolean;
 }) {
+  const router = useRouter();
   const today = useMemo(
     () => getLocalDateKey(),
     [],
@@ -309,12 +302,6 @@ export function TripPlannerLauncher({
   ] = useState<string[]>([]);
   const [plan, setPlan] =
     useState<TripPlan | null>(null);
-  const [isSaving, setIsSaving] =
-    useState(false);
-  const [savedTripId, setSavedTripId] =
-    useState<string | null>(null);
-  const [saveMessage, setSaveMessage] =
-    useState("");
 
   function toggleInterest(
     interest: string,
@@ -348,8 +335,6 @@ export function TripPlannerLauncher({
     setIsSubmitting(true);
     setErrorMessage("");
     setAvailableDestinations([]);
-    setSavedTripId(null);
-    setSaveMessage("");
 
     try {
       const response = await fetch(
@@ -394,6 +379,9 @@ export function TripPlannerLauncher({
       }
 
       setPlan(payload.plan);
+      sessionStorage.removeItem(
+        TRIP_DRAFT_STORAGE_KEY,
+      );
     } catch {
       setPlan(null);
       setErrorMessage(
@@ -404,97 +392,24 @@ export function TripPlannerLauncher({
     }
   }
 
-  async function handleSavePlan() {
-    if (!plan || isSaving || savedTripId) {
+
+  function handleCustomizePlan() {
+    if (!plan) {
       return;
     }
 
-    setIsSaving(true);
-    setSaveMessage("");
-    setErrorMessage("");
+    sessionStorage.setItem(
+      TRIP_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        storedAt: new Date().toISOString(),
+        plan,
+      }),
+    );
 
-    try {
-      const response = await fetch(
-        "/api/trip-planner/save",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            origin:
-              plan.origin,
-            destination:
-              plan.destination,
-            startDate:
-              plan.startDate,
-            departureTime:
-              plan.departureTime,
-            transportMode:
-              plan.transportMode,
-            duration:
-              plan.duration,
-            travelerCount:
-              plan.travelerCount,
-            totalBudget:
-              plan.totalBudget,
-            interests:
-              plan.interests,
-          }),
-        },
-      );
-
-      if (response.status === 401) {
-        const message = encodeURIComponent(
-          "Vui lòng đăng nhập, sau đó tạo lại lịch trình để lưu chuyến đi.",
-        );
-
-        window.location.href =
-          `/dang-nhap?message=${message}`;
-
-        return;
-      }
-
-      if (response.status === 403) {
-        window.location.href =
-          "/khong-co-quyen?reason=inactive";
-        return;
-      }
-
-      let payload: SaveTripApiResponse = {};
-
-      try {
-        payload =
-          (await response.json()) as SaveTripApiResponse;
-      } catch {
-        payload = {};
-      }
-
-      if (
-        !response.ok ||
-        !payload.savedTrip
-      ) {
-        setSaveMessage(
-          payload.message ??
-            "Không thể lưu chuyến đi. Vui lòng thử lại.",
-        );
-        return;
-      }
-
-      setSavedTripId(
-        payload.savedTrip.id,
-      );
-      setSaveMessage(
-        `Đã lưu "${payload.savedTrip.title}" với ${payload.savedTrip.dayCount} ngày và ${payload.savedTrip.activityCount} hoạt động.`,
-      );
-    } catch {
-      setSaveMessage(
-        "Không thể kết nối để lưu chuyến đi. Vui lòng thử lại.",
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    router.push(
+      "/lap-lich-trinh/tuy-chinh",
+    );
   }
 
   return (
@@ -805,7 +720,7 @@ export function TripPlannerLauncher({
               </button>
 
               <p className="text-xs leading-5 text-slate-400">
-                Preview chỉ được lưu khi bạn bấm “Lưu chuyến đi”.
+                Preview chưa tạo Trip. Bạn có thể tùy chỉnh draft trước khi xác nhận lưu.
               </p>
             </div>
           </form>
@@ -1125,39 +1040,18 @@ export function TripPlannerLauncher({
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={handleSavePlan}
-                    disabled={
-                      isSaving ||
-                      Boolean(savedTripId)
-                    }
-                    className="min-h-11 w-full rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
+                    onClick={handleCustomizePlan}
+                    className="min-h-11 w-full rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 sm:w-auto"
                   >
-                    {savedTripId
-                      ? "✓ Đã lưu chuyến đi"
-                      : isSaving
-                        ? "Đang lưu..."
-                        : "💾 Lưu chuyến đi"}
+                    🛠 Tùy chỉnh lịch trình
                   </button>
 
-                  <p className="text-xs leading-5 text-slate-500">
-                    {savedTripId
-                      ? "Chuyến đi đã được ghi vào tài khoản của bạn."
-                      : "Chỉ lưu khi bạn chủ động chọn; tạo preview không tự sinh dữ liệu Trip."}
+                  <p className="max-w-2xl text-xs leading-5 text-slate-500">
+                    Mở draft ở trang riêng để đổi thứ tự, thay, thêm hoặc xóa
+                    địa điểm. Trip chỉ được tạo khi bạn bấm “Xác nhận & lưu
+                    chuyến đi” ở bước tùy chỉnh.
                   </p>
                 </div>
-
-                {saveMessage ? (
-                  <p
-                    role="status"
-                    className={`mt-3 rounded-xl px-3 py-2 text-xs font-medium ${
-                      savedTripId
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-red-50 text-red-700"
-                    }`}
-                  >
-                    {saveMessage}
-                  </p>
-                ) : null}
               </div>
 
               <div className="space-y-5 p-4 sm:p-6">

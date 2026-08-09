@@ -99,6 +99,44 @@ export type InternalTripPlanGenerationResult = {
   availableDestinations: string[];
 };
 
+
+export type InternalTripDraftPlaceOption = {
+  placeId: string;
+  placeName: string;
+  categoryName: string;
+  addressLine: string;
+  provinceName: string;
+  imageUrl: string | null;
+  shortDescription: string | null;
+  seasonNote: string | null;
+  entryPrice: number;
+  currency: string;
+  score: number;
+  reasons: string[];
+};
+
+export type InternalTripDraftDayInput = {
+  dayNumber: number;
+  date: string;
+  activities: Array<{
+    placeId: string;
+    time: string;
+  }>;
+};
+
+export class InternalTripDraftValidationError extends Error {
+  readonly code: string;
+
+  constructor(
+    code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "InternalTripDraftValidationError";
+    this.code = code;
+  }
+}
+
 type PlannerOpeningPeriod = {
   dayOfWeek: string;
   periodOrder: number;
@@ -1429,5 +1467,410 @@ export async function buildInternalTripPlan(
       days,
     },
     availableDestinations,
+  };
+}
+
+function buildAvailableDestinationNames(
+  places: PlannerPlace[],
+): string[] {
+  return [
+    ...new Set(
+      places.map((place) => place.province.name),
+    ),
+  ].sort((left, right) =>
+    left.localeCompare(right, "vi"),
+  );
+}
+
+async function getDraftScoredPlaces(
+  request: InternalTripPlanRequest,
+  userId: string | null,
+): Promise<{
+  allPlaces: PlannerPlace[];
+  destinationPlaces: PlannerPlace[];
+  scoredPlaces: ScoredPlannerPlace[];
+  availableDestinations: string[];
+  reactionSignals: TripReactionInterestSignals;
+  startDate: Date;
+}> {
+  const startDate = parseCalendarDate(request.startDate);
+
+  if (!startDate) {
+    throw new Error(
+      "Start date must be validated before loading draft places.",
+    );
+  }
+
+  const allPlaces = await loadPlannerPlaces();
+  const availableDestinations =
+    buildAvailableDestinationNames(allPlaces);
+  const destinationTerms =
+    buildDestinationTerms(request.destination);
+  const destinationPlaces = allPlaces.filter((place) =>
+    placeMatchesDestination(place, destinationTerms),
+  );
+
+  let reactionSignals = getEmptyReactionSignals();
+
+  if (userId) {
+    reactionSignals =
+      await getReactionInterestSignals(userId);
+  }
+
+  const visitMonth = startDate.getUTCMonth() + 1;
+  const scoredPlaces = scorePlaces(
+    destinationPlaces,
+    request,
+    reactionSignals,
+    visitMonth,
+  );
+
+  return {
+    allPlaces,
+    destinationPlaces,
+    scoredPlaces,
+    availableDestinations,
+    reactionSignals,
+    startDate,
+  };
+}
+
+export async function buildInternalTripDraftOptions(
+  request: InternalTripPlanRequest,
+  userId: string | null,
+): Promise<{
+  options: InternalTripDraftPlaceOption[];
+  availableDestinations: string[];
+}> {
+  const context = await getDraftScoredPlaces(
+    request,
+    userId,
+  );
+
+  return {
+    options: context.scoredPlaces
+      .slice(0, 60)
+      .map((place) => ({
+        placeId: place.id,
+        placeName: place.name,
+        categoryName: place.category.name,
+        addressLine: place.addressLine,
+        provinceName: place.province.name,
+        imageUrl: getPublicPlaceImageUrl(place.imagePath),
+        shortDescription: place.shortDescription,
+        seasonNote: place.seasonNote,
+        entryPrice: place.entryPrice,
+        currency: place.currency,
+        score: place.score,
+        reasons: place.reasons,
+      })),
+    availableDestinations:
+      context.availableDestinations,
+  };
+}
+
+function expectedDraftDate(
+  startDate: Date,
+  dayNumber: number,
+): string {
+  const date = new Date(startDate);
+  date.setUTCDate(
+    startDate.getUTCDate() + dayNumber - 1,
+  );
+  return formatDateKey(date);
+}
+
+export async function buildCustomizedInternalTripPlan(
+  request: InternalTripPlanRequest,
+  userId: string | null,
+  draftDays: InternalTripDraftDayInput[],
+): Promise<InternalTripPlanGenerationResult> {
+  const departureAt = parseVietnamTripDeparture(
+    request.startDate,
+    request.departureTime,
+  );
+
+  if (!departureAt) {
+    throw new Error(
+      "Departure time must be validated before saving a custom draft.",
+    );
+  }
+
+  const context = await getDraftScoredPlaces(
+    request,
+    userId,
+  );
+
+  if (context.destinationPlaces.length === 0) {
+    return {
+      plan: null,
+      availableDestinations:
+        context.availableDestinations,
+    };
+  }
+
+  if (draftDays.length !== request.duration) {
+    throw new InternalTripDraftValidationError(
+      "DRAFT_DAY_COUNT_CHANGED",
+      "Draft không còn khớp số ngày của chuyến đi. Hãy tạo lại lịch trình.",
+    );
+  }
+
+  const originTerms = buildDestinationTerms(
+    request.origin,
+  );
+  const originPlaces = context.allPlaces.filter(
+    (place) =>
+      placeMatchesDestination(place, originTerms),
+  );
+  const travelEstimate = await estimateTripTravel({
+    origin: request.origin,
+    destination: request.destination,
+    transportMode: request.transportMode,
+    departureAt,
+    fallbackOrigin: getPlaceCenter(originPlaces),
+    fallbackDestination:
+      getPlaceCenter(context.destinationPlaces),
+  });
+  const travelEstimateMessage = travelEstimate
+    ? null
+    : "Chưa đủ dữ liệu để ước tính thời gian di chuyển; draft dùng các khung giờ đã chọn và sẽ được kiểm tra trước khi lưu.";
+  const readyState = getVietnamReadyState(
+    travelEstimate,
+  );
+  const scoredById = new Map(
+    context.scoredPlaces.map((place) => [
+      place.id,
+      place,
+    ]),
+  );
+  const usedPlaceIds = new Set<string>();
+  const dayInputByNumber = new Map(
+    draftDays.map((day) => [
+      day.dayNumber,
+      day,
+    ]),
+  );
+  const days: InternalTripPlanDay[] = [];
+
+  for (
+    let dayNumber = 1;
+    dayNumber <= request.duration;
+    dayNumber += 1
+  ) {
+    const dayInput = dayInputByNumber.get(dayNumber);
+    const dateKey = expectedDraftDate(
+      context.startDate,
+      dayNumber,
+    );
+
+    if (!dayInput || dayInput.date !== dateKey) {
+      throw new InternalTripDraftValidationError(
+        "DRAFT_DAY_CHANGED",
+        `Ngày ${dayNumber} của draft không còn hợp lệ. Hãy tạo lại lịch trình.`,
+      );
+    }
+
+    if (dayInput.activities.length > 3) {
+      throw new InternalTripDraftValidationError(
+        "DRAFT_DAY_TOO_DENSE",
+        `Ngày ${dayNumber} chỉ hỗ trợ tối đa 3 hoạt động trong bản MVP.`,
+      );
+    }
+
+    const date = new Date(context.startDate);
+    date.setUTCDate(
+      context.startDate.getUTCDate() + dayNumber - 1,
+    );
+    const dayOfWeek = DAY_OF_WEEK[date.getUTCDay()];
+    const allowedSlots = getSlotsForDate(
+      dateKey,
+      readyState,
+    );
+    const usedTimes = new Set<string>();
+    const activities: InternalTripPlanActivity[] = [];
+    let previousPlace: ScoredPlannerPlace | null = null;
+    let previousSlotIndex = -1;
+
+    for (const activityInput of dayInput.activities) {
+      const place = scoredById.get(
+        activityInput.placeId,
+      );
+
+      if (!place) {
+        throw new InternalTripDraftValidationError(
+          "DRAFT_PLACE_UNAVAILABLE",
+          "Một địa điểm trong draft đã bị ẩn, chưa được duyệt hoặc không còn thuộc điểm đến đã chọn.",
+        );
+      }
+
+      if (usedPlaceIds.has(place.id)) {
+        throw new InternalTripDraftValidationError(
+          "DRAFT_DUPLICATE_PLACE",
+          `Địa điểm “${place.name}” đang xuất hiện nhiều hơn một lần trong draft.`,
+        );
+      }
+
+      const slotIndex = allowedSlots.findIndex(
+        (candidate) =>
+          candidate.time === activityInput.time,
+      );
+      const slot = allowedSlots[slotIndex];
+
+      if (
+        !slot ||
+        usedTimes.has(slot.time) ||
+        slotIndex <= previousSlotIndex
+      ) {
+        throw new InternalTripDraftValidationError(
+          "DRAFT_SLOT_INVALID",
+          `Khung giờ ${activityInput.time} ở ngày ${dayNumber} không còn hợp lệ hoặc thứ tự draft không đúng thời gian.`,
+        );
+      }
+
+      const openingState = getOpeningState(
+        place,
+        dayOfWeek,
+        slot.minutes,
+      );
+
+      if (!openingState.canVisit) {
+        throw new InternalTripDraftValidationError(
+          "DRAFT_PLACE_CLOSED",
+          `“${place.name}” không khớp giờ mở cửa ở ${slot.time} ngày ${dayNumber}. Hãy thay địa điểm hoặc đổi thứ tự.`,
+        );
+      }
+
+      const distanceFromPreviousKm = previousPlace
+        ? haversineDistanceKm(previousPlace, place)
+        : null;
+
+      activities.push({
+        slot: slot.slot,
+        slotLabel: slot.label,
+        time: slot.time,
+        placeId: place.id,
+        placeName: place.name,
+        categoryName: place.category.name,
+        addressLine: place.addressLine,
+        provinceName: place.province.name,
+        imageUrl: getPublicPlaceImageUrl(place.imagePath),
+        shortDescription: place.shortDescription,
+        seasonNote: place.seasonNote,
+        entryPrice: place.entryPrice,
+        currency: place.currency,
+        score: place.score,
+        reasons: place.reasons,
+        openingNote: openingState.note,
+        distanceFromPreviousKm,
+      });
+
+      usedPlaceIds.add(place.id);
+      usedTimes.add(slot.time);
+      previousSlotIndex = slotIndex;
+      previousPlace = place;
+    }
+
+    days.push({
+      dayNumber,
+      date: dateKey,
+      dateLabel: formatDateLabel(date),
+      summary:
+        activities.length > 0
+          ? "Lịch ngày này đã được bạn tùy chỉnh; hệ thống xác minh lại địa điểm, giờ mở cửa và ngân sách trước khi lưu."
+          : "Ngày này đang để trống trong draft tùy chỉnh.",
+      activities,
+    });
+  }
+
+  const scheduledActivities = days.flatMap(
+    (day) => day.activities,
+  );
+
+  if (scheduledActivities.length === 0) {
+    throw new InternalTripDraftValidationError(
+      "EMPTY_DRAFT_ITINERARY",
+      "Draft cần ít nhất một hoạt động tham quan trước khi lưu.",
+    );
+  }
+
+  const matchedReactionPlaceCount =
+    context.scoredPlaces.filter(
+      (place) => place.reactionScore > 0,
+    ).length;
+  const matchedSavedPlaceCount =
+    context.scoredPlaces.filter(
+      (place) => place.savedBoost > 0,
+    ).length;
+  const estimatedEntryFees =
+    scheduledActivities.reduce(
+      (total, activity) =>
+        total + activity.entryPrice,
+      0,
+    );
+  const budgetEstimate = buildTripBudgetEstimate({
+    totalBudget: request.totalBudget,
+    travelerCount: request.travelerCount,
+    duration: request.duration,
+    transportMode: request.transportMode,
+    travelEstimate,
+    activities: scheduledActivities.map(
+      (activity) => ({
+        entryPrice: activity.entryPrice,
+        distanceFromPreviousKm:
+          activity.distanceFromPreviousKm,
+      }),
+    ),
+  });
+
+  return {
+    plan: {
+      origin: request.origin,
+      destination: request.destination,
+      startDate: request.startDate,
+      departureTime: request.departureTime,
+      transportMode: request.transportMode,
+      travelEstimate,
+      travelEstimateMessage,
+      duration: request.duration,
+      travelerCount: request.travelerCount,
+      totalBudget: request.totalBudget,
+      budgetEstimate,
+      interests: request.interests,
+      generatedAt: new Date().toISOString(),
+      candidateCount: context.destinationPlaces.length,
+      scheduledPlaceCount: scheduledActivities.length,
+      estimatedEntryFees,
+      currency: "VND",
+      personalization: {
+        applied:
+          userId !== null &&
+          (context.reactionSignals.reactionCount > 0 ||
+            context.reactionSignals.saveCount > 0),
+        reactionCount:
+          context.reactionSignals.reactionCount,
+        saveCount: context.reactionSignals.saveCount,
+        matchedPlaceCount:
+          matchedReactionPlaceCount,
+        matchedSavedPlaceCount,
+        preferredMonths:
+          context.reactionSignals.preferredMonths.map(
+            (signal) => signal.month,
+          ),
+        savedPreferredMonths:
+          context.reactionSignals.savedPreferredMonths.map(
+            (signal) => signal.month,
+          ),
+      },
+      scoringGuide: [
+        "Draft được lưu đúng thứ tự người dùng đã chỉnh; backend không regenerate lịch trình trước khi save.",
+        "Mọi Place ID được kiểm tra lại phải VERIFIED, active và còn thuộc điểm đến đã chọn.",
+        "Khung giờ và openingHours được kiểm tra lại; ngày đầu vẫn tuân thủ ETA + 60 phút buffer khi có ETA.",
+        "Dự toán ngân sách được tính lại từ draft đã chỉnh trước khi tạo Trip snapshot.",
+      ],
+      days,
+    },
+    availableDestinations:
+      context.availableDestinations,
   };
 }

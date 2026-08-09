@@ -5,9 +5,12 @@ import { TransportMode } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
 import {
+  buildCustomizedInternalTripPlan,
   buildInternalTripPlan,
+  InternalTripDraftValidationError,
   isValidInternalTripDuration,
   parseInternalTripStartDate,
+  type InternalTripDraftDayInput,
   type InternalTripPlanActivity,
 } from "@/lib/trip-planner/internal-plan";
 import {
@@ -40,6 +43,7 @@ type SaveTripPayload = {
   travelerCount: number;
   totalBudget: number;
   interests: string[];
+  draftDays: InternalTripDraftDayInput[] | null;
 };
 
 function errorResponse(
@@ -61,6 +65,138 @@ function readString(value: unknown): string {
   return typeof value === "string"
     ? value.trim()
     : "";
+}
+
+
+function parseDraftDays(
+  value: unknown,
+):
+  | {
+      ok: true;
+      value: InternalTripDraftDayInput[] | null;
+    }
+  | {
+      ok: false;
+      response: NextResponse;
+    } {
+  if (value === undefined || value === null) {
+    return {
+      ok: true,
+      value: null,
+    };
+  }
+
+  if (!Array.isArray(value) || value.length > 7) {
+    return {
+      ok: false,
+      response: errorResponse(
+        400,
+        "INVALID_DRAFT_DAYS",
+        "Draft lịch trình không hợp lệ.",
+      ),
+    };
+  }
+
+  const parsedDays: InternalTripDraftDayInput[] = [];
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const timePattern =
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+  for (const item of value) {
+    if (
+      typeof item !== "object" ||
+      item === null
+    ) {
+      return {
+        ok: false,
+        response: errorResponse(
+          400,
+          "INVALID_DRAFT_DAY",
+          "Một ngày trong draft không hợp lệ.",
+        ),
+      };
+    }
+
+    const record = item as Record<string, unknown>;
+    const dayNumber = Number(record.dayNumber);
+    const date = readString(record.date);
+    const activities = record.activities;
+
+    if (
+      !Number.isInteger(dayNumber) ||
+      dayNumber < 1 ||
+      dayNumber > 7 ||
+      !datePattern.test(date) ||
+      !Array.isArray(activities) ||
+      activities.length > 3
+    ) {
+      return {
+        ok: false,
+        response: errorResponse(
+          400,
+          "INVALID_DRAFT_DAY",
+          "Ngày hoặc số hoạt động trong draft không hợp lệ.",
+        ),
+      };
+    }
+
+    const parsedActivities: InternalTripDraftDayInput["activities"] = [];
+
+    for (const activity of activities) {
+      if (
+        typeof activity !== "object" ||
+        activity === null
+      ) {
+        return {
+          ok: false,
+          response: errorResponse(
+            400,
+            "INVALID_DRAFT_ACTIVITY",
+            "Hoạt động trong draft không hợp lệ.",
+          ),
+        };
+      }
+
+      const activityRecord =
+        activity as Record<string, unknown>;
+      const placeId = readString(
+        activityRecord.placeId,
+      );
+      const time = readString(activityRecord.time);
+
+      if (
+        !uuidPattern.test(placeId) ||
+        !timePattern.test(time)
+      ) {
+        return {
+          ok: false,
+          response: errorResponse(
+            400,
+            "INVALID_DRAFT_ACTIVITY",
+            "Địa điểm hoặc khung giờ trong draft không hợp lệ.",
+          ),
+        };
+      }
+
+      parsedActivities.push({
+        placeId,
+        time,
+      });
+    }
+
+    parsedDays.push({
+      dayNumber,
+      date,
+      activities: parsedActivities,
+    });
+  }
+
+  return {
+    ok: true,
+    value: parsedDays,
+  };
 }
 
 function parsePayload(
@@ -139,6 +275,17 @@ function parsePayload(
         ),
       ]
     : [];
+
+  const parsedDraftDays = parseDraftDays(
+    record.draftDays,
+  );
+
+  if (parsedDraftDays.ok === false) {
+    return {
+      ok: false,
+      response: parsedDraftDays.response,
+    };
+  }
 
   if (
     origin.length < 2 ||
@@ -286,6 +433,7 @@ function parsePayload(
       travelerCount,
       totalBudget,
       interests,
+      draftDays: parsedDraftDays.value,
     },
   };
 }
@@ -483,18 +631,35 @@ export async function POST(
 
   const parsed = parsePayload(payload);
 
-  if (!parsed.ok) {
+  if (parsed.ok === false) {
     return parsed.response;
   }
 
   const input = parsed.value;
 
   try {
-    const generation =
-      await buildInternalTripPlan(
-        input,
-        applicationUser.id,
-      );
+    const planningRequest = {
+      origin: input.origin,
+      destination: input.destination,
+      startDate: input.startDate,
+      departureTime: input.departureTime,
+      transportMode: input.transportMode,
+      duration: input.duration,
+      travelerCount: input.travelerCount,
+      totalBudget: input.totalBudget,
+      interests: input.interests,
+    };
+
+    const generation = input.draftDays
+      ? await buildCustomizedInternalTripPlan(
+          planningRequest,
+          applicationUser.id,
+          input.draftDays,
+        )
+      : await buildInternalTripPlan(
+          planningRequest,
+          applicationUser.id,
+        );
 
     const plan = generation.plan;
 
@@ -627,8 +792,9 @@ export async function POST(
           endDate,
           currency: "VND",
           status: "READY",
-          notes:
-            "Lịch trình được lưu từ Trip Planner nội bộ của VTripPlanner; ETA và dự toán ngân sách là snapshot tại thời điểm lưu.",
+          notes: input.draftDays
+            ? "Lịch trình được lưu từ draft do người dùng tùy chỉnh; backend đã xác minh lại địa điểm, giờ mở cửa, ETA và dự toán ngân sách trước khi tạo snapshot."
+            : "Lịch trình được lưu từ Trip Planner nội bộ của VTripPlanner; ETA và dự toán ngân sách là snapshot tại thời điểm lưu.",
           transportPreference: {
             create: {
               mainMode: mapTransportMode(
@@ -776,6 +942,17 @@ export async function POST(
       { status: 201 },
     );
   } catch (error) {
+    if (
+      error instanceof
+      InternalTripDraftValidationError
+    ) {
+      return errorResponse(
+        409,
+        error.code,
+        error.message,
+      );
+    }
+
     console.error(
       "Trip save failed:",
       error,
