@@ -176,7 +176,16 @@ export default async function PromotionsPage() {
         </div>
       </header>
 
-      <section className="border-b border-slate-200 bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-800 text-white">
+      <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6">
+        <Link
+          href="/"
+          className="inline-flex min-h-10 items-center rounded-xl px-1 text-sm font-semibold text-slate-500 transition hover:text-emerald-700"
+        >
+          ← Trở về trang chủ
+        </Link>
+      </div>
+
+      <section className="mt-2 border-b border-slate-200 bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-800 text-white">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">
             VTripPlanner Deals
