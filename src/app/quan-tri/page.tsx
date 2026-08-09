@@ -439,8 +439,10 @@ export default async function AdminPage() {
             />
             <ModuleCard
               title="Voucher & Khuyến mãi"
-              description="Quản lý chương trình ưu đãi và voucher trên toàn hệ thống."
+              description="Duyệt chương trình ưu đãi của Partner và theo dõi voucher toàn hệ thống."
               icon={Ticket}
+              badge="Quản lý"
+              href="/quan-tri/uu-dai"
             />
           </div>
         </section>

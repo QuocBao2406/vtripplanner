@@ -196,6 +196,25 @@ enum TripPlanVersionStatus {
   ARCHIVED
 }
 
+enum PromotionStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum PromotionDiscountType {
+  PERCENT
+  FIXED_AMOUNT
+}
+
+enum VoucherClaimStatus {
+  CLAIMED
+  USED
+  EXPIRED
+}
+
 model User {
   id                          String               @id @db.Uuid
   email                       String?              @unique @db.VarChar(320)
@@ -228,6 +247,10 @@ model User {
   sentTravelNotifications     TravelNotification[] @relation("TravelNotificationActor")
   travelPostHides             TravelPostHide[]
   auditLogs                   AuditLog[]           @relation("AuditLogActor")
+
+  createdPromotions  Promotion[]    @relation("PromotionCreator")
+  reviewedPromotions Promotion[]    @relation("PromotionReviewer")
+  voucherClaims      VoucherClaim[]
 
   @@index([isActive])
   @@index([deletedAt])
@@ -371,6 +394,8 @@ model Partner {
   branches   PartnerBranch[]
   places     Place[]
 
+  promotions Promotion[]
+
   @@index([reviewedByUserId])
   @@index([type])
   @@index([approvalStatus])
@@ -506,6 +531,8 @@ model Place {
   reviews          PlaceReview[]
   userInteractions UserInteraction[]
   travelPostLinks  TravelPostPlace[]
+
+  promotionLinks PromotionPlace[]
 
   @@index([partnerId])
   @@index([partnerBranchId])
@@ -916,6 +943,81 @@ model TripPlanVersion {
   @@index([status])
   @@index([createdAt])
   @@map("trip_plan_versions")
+}
+
+model Promotion {
+  id                String                @id @default(uuid()) @db.Uuid
+  partnerId         String                @db.Uuid
+  createdByUserId   String?               @db.Uuid
+  reviewedByUserId  String?               @db.Uuid
+  title             String                @db.VarChar(200)
+  description       String                @db.VarChar(2000)
+  terms             String?               @db.VarChar(3000)
+  discountType      PromotionDiscountType
+  discountValue     Decimal               @db.Decimal(14, 2)
+  maxDiscountAmount Decimal?              @db.Decimal(14, 2)
+  minimumSpend      Decimal?              @db.Decimal(14, 2)
+  startAt           DateTime              @db.Timestamptz(6)
+  endAt             DateTime              @db.Timestamptz(6)
+  totalQuantity     Int?
+  status            PromotionStatus       @default(DRAFT)
+  rejectionReason   String?               @db.VarChar(1000)
+  submittedAt       DateTime?             @db.Timestamptz(6)
+  reviewedAt        DateTime?             @db.Timestamptz(6)
+  isActive          Boolean               @default(false)
+  createdAt         DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @db.Timestamptz(6)
+  deletedAt         DateTime?             @db.Timestamptz(6)
+
+  partner    Partner          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  createdBy  User?            @relation("PromotionCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy User?            @relation("PromotionReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  places     PromotionPlace[]
+  claims     VoucherClaim[]
+
+  @@index([partnerId])
+  @@index([createdByUserId])
+  @@index([reviewedByUserId])
+  @@index([status])
+  @@index([startAt, endAt])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("promotions")
+}
+
+model PromotionPlace {
+  promotionId String   @db.Uuid
+  placeId     String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  place     Place     @relation(fields: [placeId], references: [id], onDelete: Restrict)
+
+  @@id([promotionId, placeId])
+  @@index([placeId])
+  @@map("promotion_places")
+}
+
+model VoucherClaim {
+  id          String             @id @default(uuid()) @db.Uuid
+  promotionId String             @db.Uuid
+  userId      String             @db.Uuid
+  code        String             @unique @db.VarChar(40)
+  status      VoucherClaimStatus @default(CLAIMED)
+  claimedAt   DateTime           @default(now()) @db.Timestamptz(6)
+  expiresAt   DateTime           @db.Timestamptz(6)
+  usedAt      DateTime?          @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(6)
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, userId])
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("voucher_claims")
 }
 
 model AuditLog {
