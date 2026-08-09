@@ -400,8 +400,8 @@ export default async function AdminPage() {
               Các module quản lý
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Dashboard dùng dữ liệu thật. Người dùng, Đối tác, Khu vực, Địa điểm
-              và Voucher đã có màn hình quản lý trực tiếp; Bài viết là module tiếp theo.
+              Dashboard dùng dữ liệu thật. Các module quản lý chính đã có màn hình
+              trực tiếp, bao gồm moderation bài viết cộng đồng.
             </p>
           </div>
 
@@ -436,8 +436,10 @@ export default async function AdminPage() {
             />
             <ModuleCard
               title="Bài viết"
-              description="Theo dõi nội dung cộng đồng và hỗ trợ moderation khi cần."
+              description="Theo dõi nội dung cộng đồng, xóa bài vi phạm và khôi phục khi xử lý nhầm."
               icon={FileText}
+              badge="Quản lý"
+              href="/quan-tri/bai-viet"
             />
             <ModuleCard
               title="Voucher & Khuyến mãi"
