@@ -19,6 +19,25 @@ type BudgetLevel =
   | "STANDARD"
   | "PREMIUM";
 
+type TripTransportMode =
+  | "MOTORBIKE"
+  | "CAR"
+  | "COACH";
+
+type TripTravelEstimate = {
+  origin: string;
+  destination: string;
+  transportMode: TripTransportMode;
+  departureAt: string;
+  arrivalAt: string;
+  distanceKm: number | null;
+  durationMinutes: number;
+  source: "GOOGLE_ROUTES" | "INTERNAL_FALLBACK";
+  sourceLabel: string;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  warning: string | null;
+};
+
 type PlanActivity = {
   slot: "MORNING" | "AFTERNOON" | "EVENING";
   slotLabel: string;
@@ -48,8 +67,13 @@ type PlanDay = {
 };
 
 type TripPlan = {
+  origin: string;
   destination: string;
   startDate: string;
+  departureTime: string;
+  transportMode: TripTransportMode;
+  travelEstimate: TripTravelEstimate | null;
+  travelEstimateMessage: string | null;
   duration: number;
   budget: BudgetLevel;
   interests: string[];
@@ -95,17 +119,116 @@ const BUDGET_LABELS: Record<
   PREMIUM: "Thoải mái",
 };
 
-function getLocalDateKey(): string {
-  const now = new Date();
-  const year = now.getFullYear();
+const TRANSPORT_OPTIONS: Record<
+  TripTransportMode,
+  {
+    icon: string;
+    label: string;
+    description: string;
+  }
+> = {
+  MOTORBIKE: {
+    icon: "🛵",
+    label: "Xe máy",
+    description: "Google TWO_WHEELER khi khả dụng",
+  },
+  CAR: {
+    icon: "🚗",
+    label: "Ô tô",
+    description: "Google DRIVE khi khả dụng",
+  },
+  COACH: {
+    icon: "🚌",
+    label: "Xe khách",
+    description: "Đường bộ + buffer dừng/nghỉ",
+  },
+};
+
+function getLocalDateKey(
+  value = new Date(),
+): string {
+  const year = value.getFullYear();
   const month = String(
-    now.getMonth() + 1,
+    value.getMonth() + 1,
   ).padStart(2, "0");
   const day = String(
-    now.getDate(),
+    value.getDate(),
   ).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getDefaultDeparture(): {
+  date: string;
+  time: string;
+} {
+  const value = new Date(
+    Date.now() + 2 * 60 * 60 * 1000,
+  );
+  const roundedMinutes =
+    Math.ceil(value.getMinutes() / 30) * 30;
+
+  if (roundedMinutes >= 60) {
+    value.setHours(
+      value.getHours() + 1,
+      0,
+      0,
+      0,
+    );
+  } else {
+    value.setMinutes(
+      roundedMinutes,
+      0,
+      0,
+    );
+  }
+
+  if (value.getHours() >= 22) {
+    value.setDate(value.getDate() + 1);
+    value.setHours(8, 0, 0, 0);
+  }
+
+  return {
+    date: getLocalDateKey(value),
+    time: `${String(value.getHours()).padStart(
+      2,
+      "0",
+    )}:${String(value.getMinutes()).padStart(
+      2,
+      "0",
+    )}`,
+  };
+}
+
+function formatTravelDateTime(
+  value: string,
+): string {
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Ho_Chi_Minh",
+  }).format(new Date(value));
+}
+
+function formatDuration(
+  totalMinutes: number,
+): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0) {
+    return `${minutes} phút`;
+  }
+
+  if (minutes === 0) {
+    return `${hours} giờ`;
+  }
+
+  return `${hours} giờ ${minutes} phút`;
 }
 
 function formatMoney(
@@ -142,13 +265,23 @@ export function TripPlannerLauncher({
     () => getLocalDateKey(),
     [],
   );
+  const defaultDeparture = useMemo(
+    () => getDefaultDeparture(),
+    [],
+  );
 
   const [isOpen, setIsOpen] =
     useState(pageMode);
+  const [origin, setOrigin] =
+    useState("TP. Hồ Chí Minh");
   const [destination, setDestination] =
     useState("Đà Lạt");
   const [startDate, setStartDate] =
-    useState(today);
+    useState(defaultDeparture.date);
+  const [departureTime, setDepartureTime] =
+    useState(defaultDeparture.time);
+  const [transportMode, setTransportMode] =
+    useState<TripTransportMode>("CAR");
   const [duration, setDuration] =
     useState(3);
   const [budget, setBudget] =
@@ -219,8 +352,11 @@ export function TripPlannerLauncher({
               "application/json",
           },
           body: JSON.stringify({
+            origin,
             destination,
             startDate,
+            departureTime,
+            transportMode,
             duration,
             budget,
             interests,
@@ -277,10 +413,16 @@ export function TripPlannerLauncher({
               "application/json",
           },
           body: JSON.stringify({
+            origin:
+              plan.origin,
             destination:
               plan.destination,
             startDate:
               plan.startDate,
+            departureTime:
+              plan.departureTime,
+            transportMode:
+              plan.transportMode,
             duration:
               plan.duration,
             budget:
@@ -385,7 +527,7 @@ export function TripPlannerLauncher({
                 Tạo lịch trình từ dữ liệu thật
               </h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">
-                Hệ thống ưu tiên địa điểm theo sở thích, mùa đi, ngân sách và reaction của bạn nếu đã đăng nhập.
+                Nhập điểm xuất phát, giờ khởi hành và phương tiện để hệ thống ước tính ETA trước khi xếp hoạt động; sở thích, mùa đi, ngân sách và tín hiệu cá nhân hóa vẫn được giữ nguyên.
               </p>
             </div>
 
@@ -404,7 +546,25 @@ export function TripPlannerLauncher({
             onSubmit={handleSubmit}
             className="mt-5 grid gap-4 lg:grid-cols-12"
           >
-            <label className="min-w-0 lg:col-span-4">
+            <label className="min-w-0 lg:col-span-6">
+              <span className="text-xs font-medium text-slate-300">
+                Điểm xuất phát
+              </span>
+              <input
+                required
+                maxLength={150}
+                value={origin}
+                onChange={(event) =>
+                  setOrigin(
+                    event.target.value,
+                  )
+                }
+                placeholder="Ví dụ: TP. Hồ Chí Minh"
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
+              />
+            </label>
+
+            <label className="min-w-0 lg:col-span-6">
               <span className="text-xs font-medium text-slate-300">
                 Điểm đến
               </span>
@@ -424,7 +584,7 @@ export function TripPlannerLauncher({
 
             <label className="min-w-0 lg:col-span-3">
               <span className="text-xs font-medium text-slate-300">
-                Ngày bắt đầu
+                Ngày khởi hành
               </span>
               <input
                 required
@@ -440,7 +600,24 @@ export function TripPlannerLauncher({
               />
             </label>
 
-            <label className="min-w-0 lg:col-span-2">
+            <label className="min-w-0 lg:col-span-3">
+              <span className="text-xs font-medium text-slate-300">
+                Giờ khởi hành
+              </span>
+              <input
+                required
+                type="time"
+                value={departureTime}
+                onChange={(event) =>
+                  setDepartureTime(
+                    event.target.value,
+                  )
+                }
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
+              />
+            </label>
+
+            <label className="min-w-0 lg:col-span-3">
               <span className="text-xs font-medium text-slate-300">
                 Số ngày
               </span>
@@ -499,6 +676,47 @@ export function TripPlannerLauncher({
 
             <fieldset className="lg:col-span-12">
               <legend className="text-xs font-medium text-slate-300">
+                Phương tiện chính
+              </legend>
+
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                {(
+                  Object.keys(
+                    TRANSPORT_OPTIONS,
+                  ) as TripTransportMode[]
+                ).map((mode) => {
+                  const option =
+                    TRANSPORT_OPTIONS[mode];
+                  const selected =
+                    transportMode === mode;
+
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() =>
+                        setTransportMode(mode)
+                      }
+                      className={`min-h-16 rounded-2xl border px-4 py-3 text-left transition ${
+                        selected
+                          ? "border-emerald-300 bg-emerald-400/20 text-emerald-50"
+                          : "border-white/15 bg-white/5 text-slate-300 hover:bg-white/10"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">
+                        {option.icon} {option.label}
+                      </span>
+                      <span className="mt-1 block text-[11px] leading-4 opacity-75">
+                        {option.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <fieldset className="lg:col-span-12">
+              <legend className="text-xs font-medium text-slate-300">
                 Sở thích
               </legend>
 
@@ -541,8 +759,10 @@ export function TripPlannerLauncher({
                 type="submit"
                 disabled={
                   isSubmitting ||
+                  !origin.trim() ||
                   !destination.trim() ||
-                  !startDate
+                  !startDate ||
+                  !departureTime
                 }
                 className="min-h-11 w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:bg-slate-600 disabled:text-slate-300 sm:w-auto"
               >
@@ -649,6 +869,92 @@ export function TripPlannerLauncher({
                     </span>
                   ) : null}
                 </div>
+              </div>
+
+              <div className="border-b border-slate-200 bg-slate-50 px-5 py-5 sm:px-6">
+                {plan.travelEstimate ? (
+                  <div className="rounded-2xl border border-sky-200 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
+                          Di chuyển đến điểm đến
+                        </p>
+                        <h4 className="mt-1 text-base font-semibold text-slate-950">
+                          {plan.origin} → {plan.destination}
+                        </h4>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {TRANSPORT_OPTIONS[plan.transportMode].icon}{" "}
+                          {TRANSPORT_OPTIONS[plan.transportMode].label}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-semibold text-sky-700">
+                        {plan.travelEstimate.sourceLabel}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                          Khởi hành
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-800">
+                          {formatTravelDateTime(
+                            plan.travelEstimate.departureAt,
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                          Dự kiến đến
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-800">
+                          {formatTravelDateTime(
+                            plan.travelEstimate.arrivalAt,
+                          )}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                          Quãng đường
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-800">
+                          {plan.travelEstimate.distanceKm !== null
+                            ? `~${plan.travelEstimate.distanceKm} km`
+                            : "Chưa có dữ liệu"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                          Thời gian
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-slate-800">
+                          ~{formatDuration(
+                            plan.travelEstimate.durationMinutes,
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-xs leading-5 text-slate-500">
+                      Độ tin cậy: {plan.travelEstimate.confidence}. Lịch ngày đầu chỉ bắt đầu sau ETA + 60 phút buffer.
+                    </p>
+
+                    {plan.travelEstimate.warning ? (
+                      <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                        ⚠ {plan.travelEstimate.warning}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                    {plan.travelEstimateMessage ??
+                      "Chưa có ETA cho chặng di chuyển này."}
+                  </div>
+                )}
               </div>
 
               <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
@@ -850,7 +1156,7 @@ export function TripPlannerLauncher({
               </div>
 
               <div className="border-t border-slate-200 bg-white px-5 py-4 text-xs leading-5 text-slate-500 sm:px-6">
-                Lịch trình này được tạo bằng thuật toán nội bộ từ dữ liệu VTripPlanner, không phải AI sinh tự do. Giá, mùa và giờ mở cửa chỉ phản ánh dữ liệu hiện có trong đồ án.
+                Lịch trình này được tạo bằng thuật toán nội bộ từ dữ liệu VTripPlanner. ETA ưu tiên Google Routes khi server có cấu hình GOOGLE_MAPS_ROUTES_API_KEY; nếu không khả dụng, hệ thống dùng ước tính nội bộ và ghi rõ nguồn. Giá, mùa và giờ mở cửa chỉ phản ánh dữ liệu hiện có trong đồ án.
               </div>
             </div>
           ) : null}

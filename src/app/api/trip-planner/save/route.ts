@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { TransportMode } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
 import {
@@ -10,6 +11,12 @@ import {
   type InternalTripBudget,
   type InternalTripPlanActivity,
 } from "@/lib/trip-planner/internal-plan";
+import {
+  isTripTransportMode,
+  parseVietnamTripDeparture,
+  type TripTransportMode,
+  type TripTravelEstimate,
+} from "@/lib/trip-planner/travel-estimate";
 
 export const runtime = "nodejs";
 
@@ -20,14 +27,18 @@ const ALLOWED_BUDGETS =
     "PREMIUM",
   ]);
 
+const MAX_ORIGIN_LENGTH = 150;
 const MAX_DESTINATION_LENGTH = 100;
 const MAX_INTERESTS = 5;
 const MAX_INTEREST_LENGTH = 80;
 const ACTIVITY_DURATION_MINUTES = 120;
 
 type SaveTripPayload = {
+  origin: string;
   destination: string;
   startDate: string;
+  departureTime: string;
+  transportMode: TripTransportMode;
   duration: number;
   budget: InternalTripBudget;
   interests: string[];
@@ -82,12 +93,21 @@ function parsePayload(
   const record =
     payload as Record<string, unknown>;
 
+  const origin = readString(
+    record.origin,
+  );
   const destination = readString(
     record.destination,
   );
   const startDate = readString(
     record.startDate,
   );
+  const departureTime = readString(
+    record.departureTime,
+  );
+  const rawTransportMode = readString(
+    record.transportMode,
+  ).toUpperCase();
 
   const duration =
     typeof record.duration === "number"
@@ -120,6 +140,20 @@ function parsePayload(
     : [];
 
   if (
+    origin.length < 2 ||
+    origin.length > MAX_ORIGIN_LENGTH
+  ) {
+    return {
+      ok: false,
+      response: errorResponse(
+        400,
+        "INVALID_ORIGIN",
+        "Điểm xuất phát cần từ 2 đến 150 ký tự.",
+      ),
+    };
+  }
+
+  if (
     destination.length < 2 ||
     destination.length >
       MAX_DESTINATION_LENGTH
@@ -145,6 +179,33 @@ function parsePayload(
         400,
         "INVALID_START_DATE",
         "Ngày bắt đầu không hợp lệ.",
+      ),
+    };
+  }
+
+  if (
+    !parseVietnamTripDeparture(
+      startDate,
+      departureTime,
+    )
+  ) {
+    return {
+      ok: false,
+      response: errorResponse(
+        400,
+        "INVALID_DEPARTURE_TIME",
+        "Giờ khởi hành không hợp lệ.",
+      ),
+    };
+  }
+
+  if (!isTripTransportMode(rawTransportMode)) {
+    return {
+      ok: false,
+      response: errorResponse(
+        400,
+        "INVALID_TRANSPORT_MODE",
+        "Phương tiện phải là xe máy, ô tô hoặc xe khách.",
       ),
     };
   }
@@ -196,8 +257,11 @@ function parsePayload(
   return {
     ok: true,
     value: {
+      origin,
       destination,
       startDate,
+      departureTime,
+      transportMode: rawTransportMode,
       duration,
       budget,
       interests,
@@ -263,6 +327,92 @@ function getFirstScheduledPlaceId(
   }
 
   return null;
+}
+
+function mapTransportMode(
+  mode: TripTransportMode,
+): TransportMode {
+  if (mode === "MOTORBIKE") {
+    return TransportMode.MOTORBIKE;
+  }
+
+  if (mode === "CAR") {
+    return TransportMode.PRIVATE_CAR;
+  }
+
+  return TransportMode.BUS;
+}
+
+function getTransportLabel(
+  mode: TripTransportMode,
+): string {
+  if (mode === "MOTORBIKE") {
+    return "Xe máy";
+  }
+
+  if (mode === "CAR") {
+    return "Ô tô";
+  }
+
+  return "Xe khách";
+}
+
+function buildTravelActivity(
+  plan: {
+    origin: string;
+    destination: string;
+    transportMode: TripTransportMode;
+    travelEstimate: TripTravelEstimate | null;
+  },
+) {
+  if (!plan.travelEstimate) {
+    return null;
+  }
+
+  const startsAt = new Date(
+    plan.travelEstimate.departureAt,
+  );
+  const endsAt = new Date(
+    plan.travelEstimate.arrivalAt,
+  );
+
+  if (
+    Number.isNaN(startsAt.getTime()) ||
+    Number.isNaN(endsAt.getTime())
+  ) {
+    return null;
+  }
+
+  const details = [
+    `${getTransportLabel(plan.transportMode)} từ ${plan.origin} đến ${plan.destination}`,
+    plan.travelEstimate.distanceKm !== null
+      ? `Khoảng ${plan.travelEstimate.distanceKm} km`
+      : null,
+    `${plan.travelEstimate.durationMinutes} phút`,
+    `Nguồn: ${plan.travelEstimate.sourceLabel}`,
+    `Độ tin cậy: ${plan.travelEstimate.confidence}`,
+    plan.travelEstimate.warning,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return {
+    type: "TRANSPORT" as const,
+    title:
+      `Di chuyển ${plan.origin} → ${plan.destination}`.slice(
+        0,
+        200,
+      ),
+    description:
+      `Khởi hành bằng ${getTransportLabel(plan.transportMode)}.`.slice(
+        0,
+        2000,
+      ),
+    startsAt,
+    endsAt,
+    sortOrder: 0,
+    notes: details.slice(0, 1000),
+  };
 }
 
 export async function POST(
@@ -341,7 +491,7 @@ export async function POST(
       return errorResponse(
         422,
         "EMPTY_ITINERARY",
-        "Lịch trình chưa có hoạt động để lưu.",
+        "Lịch trình chưa có hoạt động tham quan để lưu. Hãy tăng số ngày hoặc đổi giờ khởi hành.",
       );
     }
 
@@ -349,10 +499,15 @@ export async function POST(
       parseInternalTripStartDate(
         plan.startDate,
       );
+    const departureAt =
+      parseVietnamTripDeparture(
+        plan.startDate,
+        plan.departureTime,
+      );
 
-    if (!startDate) {
+    if (!startDate || !departureAt) {
       throw new Error(
-        "Generated plan contains invalid start date.",
+        "Generated plan contains invalid trip date/time.",
       );
     }
 
@@ -392,6 +547,11 @@ export async function POST(
     const title =
       `Chuyến đi ${plan.destination} · ${plan.duration} ngày`
         .slice(0, 200);
+    const travelActivity =
+      buildTravelActivity(plan);
+    const savedActivityCount =
+      plan.scheduledPlaceCount +
+      (travelActivity ? 1 : 0);
 
     const savedTrip =
       await prisma.trip.create({
@@ -407,12 +567,41 @@ export async function POST(
             },
           },
           title,
+          originName: plan.origin,
+          destinationName: plan.destination,
+          departureAt,
+          estimatedArrivalAt:
+            plan.travelEstimate
+              ? new Date(
+                  plan.travelEstimate.arrivalAt,
+                )
+              : null,
+          estimatedTravelDistanceKm:
+            plan.travelEstimate?.distanceKm ?? null,
+          estimatedTravelDurationMinutes:
+            plan.travelEstimate?.durationMinutes ?? null,
+          travelEstimateSource:
+            plan.travelEstimate?.source ?? null,
+          travelEstimateConfidence:
+            plan.travelEstimate?.confidence ?? null,
           startDate,
           endDate,
           currency: "VND",
           status: "READY",
           notes:
-            "Lịch trình được lưu từ Trip Planner nội bộ của VTripPlanner.",
+            "Lịch trình được lưu từ Trip Planner nội bộ của VTripPlanner; thông tin ETA là snapshot tại thời điểm lưu.",
+          transportPreference: {
+            create: {
+              mainMode: mapTransportMode(
+                plan.transportMode,
+              ),
+              notes:
+                plan.travelEstimate?.warning?.slice(
+                  0,
+                  1000,
+                ) ?? null,
+            },
+          },
           days: {
             create: plan.days.map(
               (day) => {
@@ -426,6 +615,61 @@ export async function POST(
                     `Invalid generated day date: ${day.date}`,
                   );
                 }
+
+                const visitActivities =
+                  day.activities.map(
+                    (
+                      activity,
+                      activityIndex,
+                    ) => {
+                      const startsAt =
+                        activityStartDateTime(
+                          day.date,
+                          activity.time,
+                        );
+
+                      const endsAt =
+                        new Date(
+                          startsAt.getTime() +
+                            ACTIVITY_DURATION_MINUTES *
+                              60 *
+                              1000,
+                        );
+
+                      return {
+                        place: {
+                          connect: {
+                            id: activity.placeId,
+                          },
+                        },
+                        type: "VISIT" as const,
+                        title:
+                          activity.placeName.slice(
+                            0,
+                            200,
+                          ),
+                        description:
+                          activity.shortDescription
+                            ?.slice(
+                              0,
+                              2000,
+                            ) ??
+                          null,
+                        startsAt,
+                        endsAt,
+                        sortOrder:
+                          activityIndex +
+                          (day.dayNumber === 1 &&
+                          travelActivity
+                            ? 1
+                            : 0),
+                        notes:
+                          buildActivityNotes(
+                            activity,
+                          ),
+                      };
+                    },
+                  );
 
                 return {
                   dayNumber:
@@ -441,55 +685,13 @@ export async function POST(
                     ),
                   activities: {
                     create:
-                      day.activities.map(
-                        (
-                          activity,
-                          activityIndex,
-                        ) => {
-                          const startsAt =
-                            activityStartDateTime(
-                              day.date,
-                              activity.time,
-                            );
-
-                          const endsAt =
-                            new Date(
-                              startsAt.getTime() +
-                                ACTIVITY_DURATION_MINUTES *
-                                  60 *
-                                  1000,
-                            );
-
-                          return {
-                            place: {
-                              connect: {
-                                id: activity.placeId,
-                              },
-                            },
-                            type: "VISIT",
-                            title:
-                              activity.placeName.slice(
-                                0,
-                                200,
-                              ),
-                            description:
-                              activity.shortDescription
-                                ?.slice(
-                                  0,
-                                  2000,
-                                ) ??
-                              null,
-                            startsAt,
-                            endsAt,
-                            sortOrder:
-                              activityIndex,
-                            notes:
-                              buildActivityNotes(
-                                activity,
-                              ),
-                          };
-                        },
-                      ),
+                      day.dayNumber === 1 &&
+                      travelActivity
+                        ? [
+                            travelActivity,
+                            ...visitActivities,
+                          ]
+                        : visitActivities,
                   },
                 };
               },
@@ -511,6 +713,8 @@ export async function POST(
       });
 
     revalidatePath("/");
+    revalidatePath("/lap-lich-trinh");
+    revalidatePath("/chuyen-di-cua-toi");
     revalidatePath("/tai-khoan");
 
     return NextResponse.json(
@@ -527,7 +731,7 @@ export async function POST(
           dayCount:
             savedTrip._count.days,
           activityCount:
-            plan.scheduledPlaceCount,
+            savedActivityCount,
         },
       },
       { status: 201 },

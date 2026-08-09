@@ -614,24 +614,31 @@ model PlacePrice {
 }
 
 model Trip {
-  id                    String     @id @default(uuid()) @db.Uuid
-  ownerUserId           String     @db.Uuid
-  destinationProvinceId String?    @db.Uuid
-  destinationDistrictId String?    @db.Uuid
-  title                 String     @default("Chuyáº¿n Ä‘i má»›i") @db.VarChar(200)
-  originName            String?    @db.VarChar(255)
-  originLatitude        Decimal?   @db.Decimal(9, 6)
-  originLongitude       Decimal?   @db.Decimal(10, 6)
-  startDate             DateTime?  @db.Date
-  endDate               DateTime?  @db.Date
-  totalBudget           Decimal?   @db.Decimal(14, 2)
-  currency              String     @default("VND") @db.VarChar(3)
-  currentStep           Int        @default(1)
-  status                TripStatus @default(DRAFT)
-  notes                 String?    @db.VarChar(2000)
-  createdAt             DateTime   @default(now()) @db.Timestamptz(6)
-  updatedAt             DateTime   @updatedAt @db.Timestamptz(6)
-  deletedAt             DateTime?  @db.Timestamptz(6)
+  id                             String     @id @default(uuid()) @db.Uuid
+  ownerUserId                    String     @db.Uuid
+  destinationProvinceId          String?    @db.Uuid
+  destinationDistrictId          String?    @db.Uuid
+  title                          String     @default("Chuyáº¿n Ä‘i má»›i") @db.VarChar(200)
+  originName                     String?    @db.VarChar(255)
+  originLatitude                 Decimal?   @db.Decimal(9, 6)
+  originLongitude                Decimal?   @db.Decimal(10, 6)
+  destinationName                String?    @db.VarChar(255)
+  departureAt                    DateTime?  @db.Timestamptz(6)
+  estimatedArrivalAt             DateTime?  @db.Timestamptz(6)
+  estimatedTravelDistanceKm      Decimal?   @db.Decimal(10, 2)
+  estimatedTravelDurationMinutes Int?
+  travelEstimateSource           String?    @db.VarChar(40)
+  travelEstimateConfidence       String?    @db.VarChar(20)
+  startDate                      DateTime?  @db.Date
+  endDate                        DateTime?  @db.Date
+  totalBudget                    Decimal?   @db.Decimal(14, 2)
+  currency                       String     @default("VND") @db.VarChar(3)
+  currentStep                    Int        @default(1)
+  status                         TripStatus @default(DRAFT)
+  notes                          String?    @db.VarChar(2000)
+  createdAt                      DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt                      DateTime   @updatedAt @db.Timestamptz(6)
+  deletedAt                      DateTime?  @db.Timestamptz(6)
 
   owner                   User                         @relation("TripOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   destinationProvince     Province?                    @relation(fields: [destinationProvinceId], references: [id], onDelete: SetNull)

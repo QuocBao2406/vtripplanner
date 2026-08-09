@@ -7,6 +7,10 @@ import {
   parseInternalTripStartDate,
   type InternalTripBudget,
 } from "@/lib/trip-planner/internal-plan";
+import {
+  isTripTransportMode,
+  parseVietnamTripDeparture,
+} from "@/lib/trip-planner/travel-estimate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +22,7 @@ const ALLOWED_BUDGETS =
     "PREMIUM",
   ]);
 
+const MAX_ORIGIN_LENGTH = 150;
 const MAX_DESTINATION_LENGTH = 100;
 const MAX_INTERESTS = 5;
 const MAX_INTEREST_LENGTH = 80;
@@ -76,12 +81,21 @@ export async function POST(
   const record =
     payload as Record<string, unknown>;
 
+  const origin = readString(
+    record.origin,
+  );
   const destination = readString(
     record.destination,
   );
   const startDate = readString(
     record.startDate,
   );
+  const departureTime = readString(
+    record.departureTime,
+  );
+  const transportMode = readString(
+    record.transportMode,
+  ).toUpperCase();
 
   const duration =
     typeof record.duration === "number"
@@ -113,6 +127,17 @@ export async function POST(
     : [];
 
   if (
+    origin.length < 2 ||
+    origin.length > MAX_ORIGIN_LENGTH
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_ORIGIN",
+      "Điểm xuất phát cần từ 2 đến 150 ký tự.",
+    );
+  }
+
+  if (
     destination.length < 2 ||
     destination.length >
       MAX_DESTINATION_LENGTH
@@ -137,6 +162,27 @@ export async function POST(
   }
 
   if (
+    !parseVietnamTripDeparture(
+      startDate,
+      departureTime,
+    )
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_DEPARTURE_TIME",
+      "Giờ khởi hành không hợp lệ.",
+    );
+  }
+
+  if (!isTripTransportMode(transportMode)) {
+    return errorResponse(
+      400,
+      "INVALID_TRANSPORT_MODE",
+      "Phương tiện phải là xe máy, ô tô hoặc xe khách.",
+    );
+  }
+
+  if (
     !isValidInternalTripDuration(
       duration,
     )
@@ -157,8 +203,7 @@ export async function POST(
   }
 
   if (
-    interests.length >
-      MAX_INTERESTS ||
+    interests.length > MAX_INTERESTS ||
     interests.some(
       (interest) =>
         interest.length >
@@ -179,8 +224,11 @@ export async function POST(
     const result =
       await buildInternalTripPlan(
         {
+          origin,
           destination,
           startDate,
+          departureTime,
+          transportMode,
           duration,
           budget,
           interests,

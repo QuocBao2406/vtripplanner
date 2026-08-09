@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -7,7 +6,7 @@ import { TripPlannerLauncher } from "@/components/home/trip-planner-launcher";
 export const metadata: Metadata = {
   title: "Lập lịch trình | VTripPlanner",
   description:
-    "Tạo lịch trình du lịch từ dữ liệu địa điểm và tín hiệu sở thích trên VTripPlanner.",
+    "Tạo lịch trình du lịch với điểm xuất phát, giờ khởi hành, phương tiện và ETA trên VTripPlanner.",
 };
 
 export default function TripPlannerPage() {
@@ -50,12 +49,12 @@ export default function TripPlannerPage() {
               VTripPlanner Trip Planner
             </p>
             <h1 className="mt-3 text-3xl font-black tracking-[-0.035em] text-white sm:text-5xl">
-              Lập lịch trình cho chuyến đi của bạn
+              Lập lịch trình theo thời gian di chuyển thực tế hơn
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              Chọn điểm đến, ngày đi, thời lượng, mức ngân sách và sở thích.
-              Hệ thống sẽ xếp lịch từ dữ liệu nội bộ hiện có và dùng tín hiệu
-              reaction hoặc bài đã lưu để cá nhân hóa khi phù hợp.
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+              Chọn điểm xuất phát, điểm đến, ngày và giờ khởi hành cùng phương
+              tiện chính. Hệ thống sẽ ước tính thời gian đến trước, sau đó mới
+              xếp các hoạt động phù hợp với sở thích, mùa đi và dữ liệu địa điểm.
             </p>
           </div>
 
@@ -67,9 +66,10 @@ export default function TripPlannerPage() {
 
       <footer className="border-t border-white/10 bg-slate-950">
         <div className="mx-auto max-w-7xl px-4 py-6 text-xs leading-6 text-slate-400 sm:px-6 lg:px-8">
-          Lịch trình preview chỉ được lưu khi bạn chủ động bấm “Lưu chuyến đi”.
-          Bước này giữ nguyên engine hiện tại; điểm xuất phát, giờ khởi hành,
-          phương tiện và ngân sách tiền thực tế sẽ được bổ sung ở các bước sau.
+          ETA ưu tiên Google Routes khi server được cấu hình API key; nếu không
+          khả dụng, VTripPlanner dùng bộ ước tính nội bộ để planner vẫn hoạt động.
+          Với xe khách, thời gian hiện là ước tính đường bộ cộng buffer dừng/nghỉ,
+          chưa phải lịch vận hành của một nhà xe cụ thể.
         </div>
       </footer>
     </main>

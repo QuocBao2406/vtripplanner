@@ -17,17 +17,40 @@ const MAX_SAVED_TRIPS = 30;
 
 const TRIP_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Bản nháp",
-  GENERATING: "Đang tạo",
+  PLANNING: "Đang lên kế hoạch",
   READY: "Sẵn sàng",
+  IN_PROGRESS: "Đang đi",
+  COMPLETED: "Đã hoàn thành",
+  CANCELLED: "Đã hủy",
   ARCHIVED: "Đã lưu trữ",
 };
 
 const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  TRANSPORT: "Di chuyển",
   VISIT: "Tham quan",
-  FOOD: "Ăn uống",
-  TRANSFER: "Di chuyển",
+  MEAL: "Ăn uống",
+  ACCOMMODATION: "Lưu trú",
   REST: "Nghỉ ngơi",
+  FREE_TIME: "Thời gian tự do",
   OTHER: "Hoạt động",
+};
+
+const TRANSPORT_MODE_LABELS: Record<string, string> = {
+  MOTORBIKE: "Xe máy",
+  PRIVATE_CAR: "Ô tô",
+  BUS: "Xe khách",
+  TAXI_RIDE_HAILING: "Taxi / xe công nghệ",
+  TRAIN: "Tàu hỏa",
+  AIRPLANE: "Máy bay",
+  BOAT_FERRY: "Tàu / phà",
+  BICYCLE: "Xe đạp",
+  WALKING: "Đi bộ",
+  OTHER: "Phương tiện khác",
+};
+
+const TRAVEL_SOURCE_LABELS: Record<string, string> = {
+  GOOGLE_ROUTES: "Google Routes",
+  INTERNAL_FALLBACK: "Ước tính nội bộ",
 };
 
 function formatTripDate(
@@ -64,6 +87,43 @@ function formatActivityTime(
     hour12: false,
     timeZone: "Asia/Ho_Chi_Minh",
   }).format(date);
+}
+
+function formatTripDateTime(
+  date: Date | null,
+): string {
+  if (!date) {
+    return "Chưa xác định";
+  }
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Ho_Chi_Minh",
+  }).format(date);
+}
+
+function formatTravelDuration(
+  totalMinutes: number | null,
+): string {
+  if (totalMinutes === null) {
+    return "Chưa xác định";
+  }
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0) {
+    return `${minutes} phút`;
+  }
+
+  return minutes > 0
+    ? `${hours} giờ ${minutes} phút`
+    : `${hours} giờ`;
 }
 
 function getStatusLabel(
@@ -137,12 +197,25 @@ export default async function MyTripsPage() {
         status: true,
         startDate: true,
         endDate: true,
+        originName: true,
+        destinationName: true,
+        departureAt: true,
+        estimatedArrivalAt: true,
+        estimatedTravelDistanceKm: true,
+        estimatedTravelDurationMinutes: true,
+        travelEstimateSource: true,
+        travelEstimateConfidence: true,
         currency: true,
         notes: true,
         createdAt: true,
         destinationProvince: {
           select: {
             name: true,
+          },
+        },
+        transportPreference: {
+          select: {
+            mainMode: true,
           },
         },
         days: {
@@ -222,10 +295,10 @@ export default async function MyTripsPage() {
               Bạn chưa lưu chuyến đi nào
             </h2>
             <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">
-              Hãy tạo một lịch trình ở trang chủ. Preview chỉ được ghi vào tài khoản khi bạn bấm “Lưu chuyến đi”.
+              Hãy mở Trip Planner để tạo lịch trình mới. Preview chỉ được ghi vào tài khoản khi bạn bấm “Lưu chuyến đi”.
             </p>
             <Link
-              href="/"
+              href="/lap-lich-trinh"
               className="mt-5 inline-flex rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
             >
               Tạo chuyến đi
@@ -238,7 +311,7 @@ export default async function MyTripsPage() {
                 Đang hiển thị {trips.length} chuyến đi gần nhất.
               </p>
               <Link
-                href="/"
+                href="/lap-lich-trinh"
                 className="text-sm font-semibold text-emerald-700 transition hover:text-emerald-800"
               >
                 + Tạo chuyến đi mới
@@ -269,9 +342,9 @@ export default async function MyTripsPage() {
                             )}
                           </span>
                           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                            {trip
-                              .destinationProvince
-                              ?.name ??
+                            {trip.destinationName ??
+                              trip.destinationProvince
+                                ?.name ??
                               "Chưa xác định điểm đến"}
                           </span>
                         </div>
@@ -298,6 +371,67 @@ export default async function MyTripsPage() {
                             📍 {activityCount} hoạt động
                           </span>
                         </div>
+
+                        {trip.originName ||
+                        trip.departureAt ? (
+                          <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-sky-950">
+                                🚦 {trip.originName ?? "Điểm xuất phát"} →{" "}
+                                {trip.destinationName ??
+                                  trip.destinationProvince?.name ??
+                                  "Điểm đến"}
+                              </p>
+
+                              {trip.transportPreference
+                                ?.mainMode ? (
+                                <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                                  {TRANSPORT_MODE_LABELS[
+                                    trip.transportPreference.mainMode
+                                  ] ??
+                                    trip.transportPreference.mainMode}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+                              <span>
+                                Khởi hành: {formatTripDateTime(
+                                  trip.departureAt,
+                                )}
+                              </span>
+                              <span>
+                                Dự kiến đến: {formatTripDateTime(
+                                  trip.estimatedArrivalAt,
+                                )}
+                              </span>
+                              <span>
+                                Quãng đường: {trip.estimatedTravelDistanceKm !==
+                                null
+                                  ? `~${Number(
+                                      trip.estimatedTravelDistanceKm,
+                                    )} km`
+                                  : "Chưa xác định"}
+                              </span>
+                              <span>
+                                Thời gian: {formatTravelDuration(
+                                  trip.estimatedTravelDurationMinutes,
+                                )}
+                              </span>
+                            </div>
+
+                            {trip.travelEstimateSource ? (
+                              <p className="mt-2 text-[11px] text-slate-500">
+                                Nguồn ETA: {TRAVEL_SOURCE_LABELS[
+                                  trip.travelEstimateSource
+                                ] ?? trip.travelEstimateSource}
+                                {trip.travelEstimateConfidence
+                                  ? ` · Độ tin cậy: ${trip.travelEstimateConfidence}`
+                                  : ""}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
 
                       <SavedTripActions

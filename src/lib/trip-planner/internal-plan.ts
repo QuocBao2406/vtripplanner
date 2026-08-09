@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import {
+  estimateTripTravel,
+  parseVietnamTripDeparture,
+  type TripTransportMode,
+  type TripTravelEstimate,
+  type TripTravelGeoPoint,
+} from "@/lib/trip-planner/travel-estimate";
+import {
   getReactionInterestSignals,
   type TripReactionInterestSignals,
 } from "@/lib/trip-planner/reaction-interest-signals";
@@ -9,6 +16,7 @@ const MAX_PLANNER_PLACES = 200;
 const MAX_DURATION_DAYS = 7;
 const SAVED_PLACE_BOOST_PER_POST = 3;
 const MAX_SAVED_PLACE_BOOST = 6;
+const ARRIVAL_BUFFER_MINUTES = 60;
 
 export type InternalTripBudget =
   | "ECONOMY"
@@ -16,8 +24,11 @@ export type InternalTripBudget =
   | "PREMIUM";
 
 export type InternalTripPlanRequest = {
+  origin: string;
   destination: string;
   startDate: string;
+  departureTime: string;
+  transportMode: TripTransportMode;
   duration: number;
   budget: InternalTripBudget;
   interests: string[];
@@ -52,8 +63,13 @@ export type InternalTripPlanDay = {
 };
 
 export type InternalTripPlan = {
+  origin: string;
   destination: string;
   startDate: string;
+  departureTime: string;
+  transportMode: TripTransportMode;
+  travelEstimate: TripTravelEstimate | null;
+  travelEstimateMessage: string | null;
   duration: number;
   budget: InternalTripBudget;
   interests: string[];
@@ -136,18 +152,21 @@ const SLOT_DEFINITIONS = [
     label: "Buổi sáng",
     time: "08:30",
     minutes: 8 * 60 + 30,
+    latestMinutes: 11 * 60,
   },
   {
     slot: "AFTERNOON" as const,
     label: "Buổi chiều",
     time: "14:00",
     minutes: 14 * 60,
+    latestMinutes: 16 * 60 + 30,
   },
   {
     slot: "EVENING" as const,
     label: "Buổi tối",
     time: "19:00",
     minutes: 19 * 60,
+    latestMinutes: 20 * 60 + 30,
   },
 ];
 
@@ -474,6 +493,38 @@ function placeMatchesDestination(
   return destinationTerms.some(
     (term) => haystack.includes(term),
   );
+}
+
+function getPlaceCenter(
+  places: PlannerPlace[],
+): TripTravelGeoPoint | null {
+  const coordinates = places.filter(
+    (place) =>
+      place.latitude !== null &&
+      place.longitude !== null,
+  );
+
+  if (coordinates.length === 0) {
+    return null;
+  }
+
+  const latitude =
+    coordinates.reduce(
+      (total, place) =>
+        total + (place.latitude ?? 0),
+      0,
+    ) / coordinates.length;
+  const longitude =
+    coordinates.reduce(
+      (total, place) =>
+        total + (place.longitude ?? 0),
+      0,
+    ) / coordinates.length;
+
+  return {
+    latitude,
+    longitude,
+  };
 }
 
 function getInterestMatchedLabels(
@@ -957,13 +1008,113 @@ function choosePlaceForSlot(
   };
 }
 
+type ReadyForActivitiesState = {
+  dateKey: string;
+  minutes: number;
+};
+
+function formatMinutes(minutes: number): string {
+  const normalized = Math.max(0, minutes);
+  const hours = Math.floor(normalized / 60);
+  const minutePart = normalized % 60;
+
+  return `${String(hours).padStart(2, "0")}:${String(
+    minutePart,
+  ).padStart(2, "0")}`;
+}
+
+function roundUpMinutes(
+  minutes: number,
+  step = 30,
+): number {
+  return Math.ceil(minutes / step) * step;
+}
+
+function getVietnamReadyState(
+  travelEstimate: TripTravelEstimate | null,
+): ReadyForActivitiesState | null {
+  if (!travelEstimate) {
+    return null;
+  }
+
+  const arrival = new Date(
+    travelEstimate.arrivalAt,
+  );
+
+  if (Number.isNaN(arrival.getTime())) {
+    return null;
+  }
+
+  const readyAt = new Date(
+    arrival.getTime() +
+      ARRIVAL_BUFFER_MINUTES * 60 * 1000,
+  );
+  const vietnamClock = new Date(
+    readyAt.getTime() + 7 * 60 * 60 * 1000,
+  );
+  const year = vietnamClock.getUTCFullYear();
+  const month = String(
+    vietnamClock.getUTCMonth() + 1,
+  ).padStart(2, "0");
+  const day = String(
+    vietnamClock.getUTCDate(),
+  ).padStart(2, "0");
+
+  return {
+    dateKey: `${year}-${month}-${day}`,
+    minutes:
+      vietnamClock.getUTCHours() * 60 +
+      vietnamClock.getUTCMinutes(),
+  };
+}
+
+function getSlotsForDate(
+  dateKey: string,
+  readyState: ReadyForActivitiesState | null,
+) {
+  if (!readyState || dateKey > readyState.dateKey) {
+    return SLOT_DEFINITIONS;
+  }
+
+  if (dateKey < readyState.dateKey) {
+    return [];
+  }
+
+  const readyMinutes = roundUpMinutes(
+    readyState.minutes,
+  );
+
+  return SLOT_DEFINITIONS.flatMap((slot) => {
+    const minutes = Math.max(
+      slot.minutes,
+      readyMinutes,
+    );
+
+    if (minutes > slot.latestMinutes) {
+      return [];
+    }
+
+    return [
+      {
+        ...slot,
+        minutes,
+        time: formatMinutes(minutes),
+      },
+    ];
+  });
+}
+
 function buildDays(
   candidates: ScoredPlannerPlace[],
   request: InternalTripPlanRequest,
   startDate: Date,
+  travelEstimate: TripTravelEstimate | null,
 ): InternalTripPlanDay[] {
   const days: InternalTripPlanDay[] = [];
   const usedPlaceIds = new Set<string>();
+  const readyState = getVietnamReadyState(
+    travelEstimate,
+  );
 
   for (
     let dayIndex = 0;
@@ -977,6 +1128,11 @@ function buildDays(
 
     const dayOfWeek =
       DAY_OF_WEEK[date.getUTCDay()];
+    const dateKey = formatDateKey(date);
+    const slots = getSlotsForDate(
+      dateKey,
+      readyState,
+    );
 
     const activities:
       InternalTripPlanActivity[] = [];
@@ -984,7 +1140,7 @@ function buildDays(
     let previousPlace:
       ScoredPlannerPlace | null = null;
 
-    for (const slot of SLOT_DEFINITIONS) {
+    for (const slot of slots) {
       const selected =
         choosePlaceForSlot(
           candidates,
@@ -1032,7 +1188,28 @@ function buildDays(
     let summary =
       "Lịch trình nhẹ, ưu tiên các điểm phù hợp nhất với dữ liệu hiện có.";
 
-    if (activities.length === 0) {
+    if (
+      readyState &&
+      dateKey < readyState.dateKey
+    ) {
+      summary =
+        "Ngày di chuyển đến điểm đến; chưa xếp hoạt động tham quan trước thời điểm dự kiến đến.";
+    } else if (
+      readyState &&
+      dateKey === readyState.dateKey
+    ) {
+      const readyTime = formatMinutes(
+        roundUpMinutes(readyState.minutes),
+      );
+
+      if (activities.length === 0) {
+        summary =
+          `Dự kiến sẵn sàng sau di chuyển vào khoảng ${readyTime}; phần còn lại của ngày phù hợp để nghỉ ngơi hoặc nhận phòng.`;
+      } else {
+        summary =
+          `Hoạt động đầu tiên chỉ được xếp sau thời điểm dự kiến đến + ${ARRIVAL_BUFFER_MINUTES} phút buffer, khoảng ${readyTime}.`;
+      }
+    } else if (activities.length === 0) {
       summary =
         "Chưa tìm được địa điểm còn lại phù hợp giờ mở cửa; nên dành ngày này để nghỉ ngơi hoặc điều chỉnh số ngày.";
     } else if (activities.length === 1) {
@@ -1045,7 +1222,7 @@ function buildDays(
 
     days.push({
       dayNumber: dayIndex + 1,
-      date: formatDateKey(date),
+      date: dateKey,
       dateLabel: formatDateLabel(date),
       summary,
       activities,
@@ -1105,6 +1282,18 @@ export async function buildInternalTripPlan(
     );
   }
 
+  const departureAt =
+    parseVietnamTripDeparture(
+      request.startDate,
+      request.departureTime,
+    );
+
+  if (!departureAt) {
+    throw new Error(
+      "Departure time must be validated before planning.",
+    );
+  }
+
   const allPlaces = await loadPlannerPlaces();
 
   const availableDestinations = [
@@ -1137,6 +1326,32 @@ export async function buildInternalTripPlan(
     };
   }
 
+  const originTerms = buildDestinationTerms(
+    request.origin,
+  );
+  const originPlaces = allPlaces.filter(
+    (place) =>
+      placeMatchesDestination(
+        place,
+        originTerms,
+      ),
+  );
+  const travelEstimate =
+    await estimateTripTravel({
+      origin: request.origin,
+      destination: request.destination,
+      transportMode: request.transportMode,
+      departureAt,
+      fallbackOrigin:
+        getPlaceCenter(originPlaces),
+      fallbackDestination:
+        getPlaceCenter(destinationPlaces),
+    });
+  const travelEstimateMessage =
+    travelEstimate
+      ? null
+      : "Chưa đủ dữ liệu để ước tính thời gian di chuyển; lịch trình tạm dùng khung giờ mặc định 08:30 / 14:00 / 19:00.";
+
   let reactionSignals =
     getEmptyReactionSignals();
 
@@ -1161,6 +1376,7 @@ export async function buildInternalTripPlan(
     scoredPlaces,
     request,
     startDate,
+    travelEstimate,
   );
 
   const scheduledActivities =
@@ -1185,8 +1401,13 @@ export async function buildInternalTripPlan(
 
   return {
     plan: {
+      origin: request.origin,
       destination: request.destination,
       startDate: request.startDate,
+      departureTime: request.departureTime,
+      transportMode: request.transportMode,
+      travelEstimate,
+      travelEstimateMessage,
       duration: request.duration,
       budget: request.budget,
       interests: request.interests,
@@ -1221,6 +1442,7 @@ export async function buildInternalTripPlan(
           ),
       },
       scoringGuide: [
+        "Ngày đầu chỉ xếp hoạt động sau ETA đến điểm đến + 60 phút buffer khi có ước tính di chuyển.",
         "Sở thích khớp nhóm địa điểm: cộng điểm.",
         "Đúng bestVisitMonths: cộng điểm mùa.",
         "Reaction: LIKE = 1, WOW = 2, LOVE = 3 rồi tăng trọng số địa điểm.",
