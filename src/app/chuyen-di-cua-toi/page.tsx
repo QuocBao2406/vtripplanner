@@ -126,6 +126,25 @@ function formatTravelDuration(
     : `${hours} giờ`;
 }
 
+function formatMoney(
+  value: unknown,
+  currency = "VND",
+): string {
+  const amount = Number(
+    String(value ?? 0),
+  );
+
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(
+    Number.isFinite(amount)
+      ? amount
+      : 0,
+  );
+}
+
 function getStatusLabel(
   status: string,
 ): string {
@@ -205,6 +224,15 @@ export default async function MyTripsPage() {
         estimatedTravelDurationMinutes: true,
         travelEstimateSource: true,
         travelEstimateConfidence: true,
+        travelerCount: true,
+        totalBudget: true,
+        estimatedTransportCost: true,
+        estimatedAccommodationCost: true,
+        estimatedFoodCost: true,
+        estimatedActivityCost: true,
+        estimatedReserveAmount: true,
+        estimatedTotalCost: true,
+        estimatedBudgetRemaining: true,
         currency: true,
         notes: true,
         createdAt: true,
@@ -428,6 +456,110 @@ export default async function MyTripsPage() {
                                 {trip.travelEstimateConfidence
                                   ? ` · Độ tin cậy: ${trip.travelEstimateConfidence}`
                                   : ""}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {trip.totalBudget !== null ? (
+                          <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-semibold text-emerald-950">
+                                  💰 Ngân sách snapshot
+                                </p>
+                                <p className="mt-1 text-xs text-slate-600">
+                                  {trip.travelerCount} người · Tổng ngân sách{" "}
+                                  {formatMoney(
+                                    trip.totalBudget,
+                                    trip.currency,
+                                  )}
+                                </p>
+                              </div>
+
+                              {trip.estimatedBudgetRemaining !==
+                              null ? (
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                    Number(
+                                      trip.estimatedBudgetRemaining,
+                                    ) < 0
+                                      ? "bg-red-50 text-red-700"
+                                      : "bg-white text-emerald-700"
+                                  }`}
+                                >
+                                  {Number(
+                                    trip.estimatedBudgetRemaining,
+                                  ) < 0
+                                    ? "Vượt "
+                                    : "Còn "}
+                                  {formatMoney(
+                                    Math.abs(
+                                      Number(
+                                        trip.estimatedBudgetRemaining,
+                                      ),
+                                    ),
+                                    trip.currency,
+                                  )}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
+                              <span className="rounded-xl bg-white/80 p-2.5 text-slate-600">
+                                Di chuyển{" "}
+                                <strong className="block text-slate-900">
+                                  {formatMoney(
+                                    trip.estimatedTransportCost,
+                                    trip.currency,
+                                  )}
+                                </strong>
+                              </span>
+                              <span className="rounded-xl bg-white/80 p-2.5 text-slate-600">
+                                Lưu trú{" "}
+                                <strong className="block text-slate-900">
+                                  {formatMoney(
+                                    trip.estimatedAccommodationCost,
+                                    trip.currency,
+                                  )}
+                                </strong>
+                              </span>
+                              <span className="rounded-xl bg-white/80 p-2.5 text-slate-600">
+                                Ăn uống{" "}
+                                <strong className="block text-slate-900">
+                                  {formatMoney(
+                                    trip.estimatedFoodCost,
+                                    trip.currency,
+                                  )}
+                                </strong>
+                              </span>
+                              <span className="rounded-xl bg-white/80 p-2.5 text-slate-600">
+                                Hoạt động{" "}
+                                <strong className="block text-slate-900">
+                                  {formatMoney(
+                                    trip.estimatedActivityCost,
+                                    trip.currency,
+                                  )}
+                                </strong>
+                              </span>
+                              <span className="rounded-xl bg-white/80 p-2.5 text-slate-600">
+                                Dự phòng{" "}
+                                <strong className="block text-slate-900">
+                                  {formatMoney(
+                                    trip.estimatedReserveAmount,
+                                    trip.currency,
+                                  )}
+                                </strong>
+                              </span>
+                            </div>
+
+                            {trip.estimatedTotalCost !== null ? (
+                              <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                                Chi tiêu dự kiến trước dự phòng:{" "}
+                                {formatMoney(
+                                  trip.estimatedTotalCost,
+                                  trip.currency,
+                                )}. Đây là snapshot dự toán tại thời điểm lưu chuyến đi.
                               </p>
                             ) : null}
                           </div>

@@ -629,6 +629,14 @@ model Trip {
   estimatedTravelDurationMinutes Int?
   travelEstimateSource           String?    @db.VarChar(40)
   travelEstimateConfidence       String?    @db.VarChar(20)
+  travelerCount                  Int        @default(1)
+  estimatedTransportCost         Decimal?   @db.Decimal(14, 2)
+  estimatedAccommodationCost     Decimal?   @db.Decimal(14, 2)
+  estimatedFoodCost              Decimal?   @db.Decimal(14, 2)
+  estimatedActivityCost          Decimal?   @db.Decimal(14, 2)
+  estimatedReserveAmount         Decimal?   @db.Decimal(14, 2)
+  estimatedTotalCost             Decimal?   @db.Decimal(14, 2)
+  estimatedBudgetRemaining       Decimal?   @db.Decimal(14, 2)
   startDate                      DateTime?  @db.Date
   endDate                        DateTime?  @db.Date
   totalBudget                    Decimal?   @db.Decimal(14, 2)

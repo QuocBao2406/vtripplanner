@@ -14,11 +14,6 @@ const INTEREST_OPTIONS = [
   "Trải nghiệm địa phương",
 ];
 
-type BudgetLevel =
-  | "ECONOMY"
-  | "STANDARD"
-  | "PREMIUM";
-
 type TripTransportMode =
   | "MOTORBIKE"
   | "CAR"
@@ -36,6 +31,25 @@ type TripTravelEstimate = {
   sourceLabel: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   warning: string | null;
+};
+
+type TripBudgetEstimate = {
+  profile: "ECONOMY" | "BALANCED" | "COMFORTABLE";
+  profileLabel: string;
+  totalBudget: number;
+  travelerCount: number;
+  duration: number;
+  perPersonPerDay: number;
+  transportCost: number;
+  accommodationCost: number;
+  foodCost: number;
+  activityCost: number;
+  reserveAmount: number;
+  plannedCost: number;
+  remainingAfterReserve: number;
+  isOverBudget: boolean;
+  currency: "VND";
+  assumptions: string[];
 };
 
 type PlanActivity = {
@@ -75,7 +89,9 @@ type TripPlan = {
   travelEstimate: TripTravelEstimate | null;
   travelEstimateMessage: string | null;
   duration: number;
-  budget: BudgetLevel;
+  travelerCount: number;
+  totalBudget: number;
+  budgetEstimate: TripBudgetEstimate;
   interests: string[];
   candidateCount: number;
   scheduledPlaceCount: number;
@@ -108,15 +124,6 @@ type SaveTripApiResponse = {
     activityCount: number;
   };
   message?: string;
-};
-
-const BUDGET_LABELS: Record<
-  BudgetLevel,
-  string
-> = {
-  ECONOMY: "Tiết kiệm",
-  STANDARD: "Cân bằng",
-  PREMIUM: "Thoải mái",
 };
 
 const TRANSPORT_OPTIONS: Record<
@@ -284,8 +291,10 @@ export function TripPlannerLauncher({
     useState<TripTransportMode>("CAR");
   const [duration, setDuration] =
     useState(3);
-  const [budget, setBudget] =
-    useState<BudgetLevel>("STANDARD");
+  const [travelerCount, setTravelerCount] =
+    useState(2);
+  const [totalBudget, setTotalBudget] =
+    useState(6000000);
   const [interests, setInterests] =
     useState<string[]>([
       "Khám phá cảnh đẹp",
@@ -358,7 +367,8 @@ export function TripPlannerLauncher({
             departureTime,
             transportMode,
             duration,
-            budget,
+            travelerCount,
+            totalBudget,
             interests,
           }),
         },
@@ -425,8 +435,10 @@ export function TripPlannerLauncher({
               plan.transportMode,
             duration:
               plan.duration,
-            budget:
-              plan.budget,
+            travelerCount:
+              plan.travelerCount,
+            totalBudget:
+              plan.totalBudget,
             interests:
               plan.interests,
           }),
@@ -617,7 +629,7 @@ export function TripPlannerLauncher({
               />
             </label>
 
-            <label className="min-w-0 lg:col-span-3">
+            <label className="min-w-0 lg:col-span-2">
               <span className="text-xs font-medium text-slate-300">
                 Số ngày
               </span>
@@ -645,33 +657,51 @@ export function TripPlannerLauncher({
               </select>
             </label>
 
-            <label className="min-w-0 lg:col-span-3">
+            <label className="min-w-0 lg:col-span-2">
               <span className="text-xs font-medium text-slate-300">
-                Ngân sách
+                Số người
               </span>
-              <select
-                value={budget}
+              <input
+                required
+                type="number"
+                min={1}
+                max={20}
+                step={1}
+                value={travelerCount}
                 onChange={(event) =>
-                  setBudget(
-                    event.target
-                      .value as BudgetLevel,
+                  setTravelerCount(
+                    Number(
+                      event.target.value,
+                    ),
                   )
                 }
-                className="mt-2 w-full rounded-2xl border border-white/15 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400"
-              >
-                {(
-                  Object.keys(
-                    BUDGET_LABELS,
-                  ) as BudgetLevel[]
-                ).map((level) => (
-                  <option
-                    key={level}
-                    value={level}
-                  >
-                    {BUDGET_LABELS[level]}
-                  </option>
-                ))}
-              </select>
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
+              />
+            </label>
+
+            <label className="min-w-0 lg:col-span-2">
+              <span className="text-xs font-medium text-slate-300">
+                Tổng ngân sách
+              </span>
+              <input
+                required
+                type="number"
+                min={100000}
+                max={1000000000}
+                step={100000}
+                value={totalBudget}
+                onChange={(event) =>
+                  setTotalBudget(
+                    Number(
+                      event.target.value,
+                    ),
+                  )
+                }
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
+              />
+              <span className="mt-1 block text-[11px] text-slate-400">
+                {formatMoney(totalBudget)}
+              </span>
             </label>
 
             <fieldset className="lg:col-span-12">
@@ -762,7 +792,10 @@ export function TripPlannerLauncher({
                   !origin.trim() ||
                   !destination.trim() ||
                   !startDate ||
-                  !departureTime
+                  !departureTime ||
+                  travelerCount < 1 ||
+                  travelerCount > 20 ||
+                  totalBudget < 100000
                 }
                 className="min-h-11 w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-wait disabled:bg-slate-600 disabled:text-slate-300 sm:w-auto"
               >
@@ -821,25 +854,33 @@ export function TripPlannerLauncher({
 
                   <div className="w-full rounded-2xl bg-emerald-50 px-4 py-3 text-left sm:w-auto sm:text-right">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-                      Phí tham quan ước tính
+                      Tổng ngân sách
                     </p>
                     <p className="mt-1 text-lg font-semibold text-emerald-900">
                       {formatMoney(
-                        plan.estimatedEntryFees,
+                        plan.totalBudget,
                         plan.currency,
                       )}
                     </p>
                     <p className="mt-1 text-[11px] text-emerald-700">
-                      Chưa gồm ăn ở và di chuyển.
+                      {plan.travelerCount} người ·{" "}
+                      {formatMoney(
+                        plan.budgetEstimate
+                          .perPersonPerDay,
+                        plan.currency,
+                      )}
+                      /người/ngày
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                    {BUDGET_LABELS[
-                      plan.budget
-                    ]}
+                    💰 {plan.budgetEstimate.profileLabel}
+                  </span>
+
+                  <span className="rounded-full bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700">
+                    👥 {plan.travelerCount} người
                   </span>
 
                   {plan.personalization
@@ -955,6 +996,129 @@ export function TripPlannerLauncher({
                       "Chưa có ETA cho chặng di chuyển này."}
                   </div>
                 )}
+
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                        Dự toán ngân sách nội bộ
+                      </p>
+                      <h4 className="mt-1 text-base font-semibold text-slate-950">
+                        {plan.budgetEstimate.profileLabel} ·{" "}
+                        {formatMoney(
+                          plan.budgetEstimate
+                            .perPersonPerDay,
+                          plan.currency,
+                        )}
+                        /người/ngày
+                      </h4>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+                        plan.budgetEstimate
+                          .isOverBudget
+                          ? "bg-red-50 text-red-700"
+                          : "bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      {plan.budgetEstimate
+                        .isOverBudget
+                        ? "Vượt ngân sách"
+                        : "Trong ngân sách"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    {[
+                      [
+                        "Di chuyển",
+                        plan.budgetEstimate
+                          .transportCost,
+                      ],
+                      [
+                        "Lưu trú",
+                        plan.budgetEstimate
+                          .accommodationCost,
+                      ],
+                      [
+                        "Ăn uống",
+                        plan.budgetEstimate
+                          .foodCost,
+                      ],
+                      [
+                        "Hoạt động",
+                        plan.budgetEstimate
+                          .activityCost,
+                      ],
+                      [
+                        "Dự phòng 10%",
+                        plan.budgetEstimate
+                          .reserveAmount,
+                      ],
+                    ].map(
+                      ([label, amount]) => (
+                        <div
+                          key={String(label)}
+                          className="rounded-xl bg-slate-50 p-3"
+                        >
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            {label}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-slate-800">
+                            {formatMoney(
+                              Number(amount),
+                              plan.currency,
+                            )}
+                          </p>
+                        </div>
+                      ),
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-sm">
+                    <span className="text-slate-600">
+                      Chi tiêu dự kiến:{" "}
+                      <strong className="text-slate-900">
+                        {formatMoney(
+                          plan.budgetEstimate
+                            .plannedCost,
+                          plan.currency,
+                        )}
+                      </strong>
+                    </span>
+
+                    <span
+                      className={
+                        plan.budgetEstimate
+                          .isOverBudget
+                          ? "font-semibold text-red-700"
+                          : "font-semibold text-emerald-700"
+                      }
+                    >
+                      {plan.budgetEstimate
+                        .isOverBudget
+                        ? "Vượt "
+                        : "Còn lại "}
+                      {formatMoney(
+                        Math.abs(
+                          plan.budgetEstimate
+                            .remainingAfterReserve,
+                        ),
+                        plan.currency,
+                      )}
+                      {" "}
+                      sau dự phòng
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-[11px] leading-5 text-slate-500">
+                    Đây là dự toán MVP: phí hoạt động lấy từ database; ăn uống,
+                    lưu trú và di chuyển dùng định mức nội bộ. Giá thực tế có thể
+                    thay đổi và sẽ được thay bằng dữ liệu partner/provider ở các
+                    bước sau.
+                  </p>
+                </div>
               </div>
 
               <div className="border-b border-slate-200 bg-white px-5 py-4 sm:px-6">

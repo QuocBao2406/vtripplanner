@@ -5,7 +5,6 @@ import {
   buildInternalTripPlan,
   isValidInternalTripDuration,
   parseInternalTripStartDate,
-  type InternalTripBudget,
 } from "@/lib/trip-planner/internal-plan";
 import {
   isTripTransportMode,
@@ -15,12 +14,10 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_BUDGETS =
-  new Set<InternalTripBudget>([
-    "ECONOMY",
-    "STANDARD",
-    "PREMIUM",
-  ]);
+const MIN_TRAVELER_COUNT = 1;
+const MAX_TRAVELER_COUNT = 20;
+const MIN_TOTAL_BUDGET = 100000;
+const MAX_TOTAL_BUDGET = 1000000000;
 
 const MAX_ORIGIN_LENGTH = 150;
 const MAX_DESTINATION_LENGTH = 100;
@@ -102,11 +99,15 @@ export async function POST(
       ? record.duration
       : Number(record.duration);
 
-  const rawBudget = readString(
-    record.budget,
-  ).toUpperCase();
+  const travelerCount =
+    typeof record.travelerCount === "number"
+      ? record.travelerCount
+      : Number(record.travelerCount);
 
-  const budget = rawBudget as InternalTripBudget;
+  const totalBudget =
+    typeof record.totalBudget === "number"
+      ? record.totalBudget
+      : Number(record.totalBudget);
 
   const interests = Array.isArray(
     record.interests,
@@ -194,11 +195,27 @@ export async function POST(
     );
   }
 
-  if (!ALLOWED_BUDGETS.has(budget)) {
+  if (
+    !Number.isInteger(travelerCount) ||
+    travelerCount < MIN_TRAVELER_COUNT ||
+    travelerCount > MAX_TRAVELER_COUNT
+  ) {
     return errorResponse(
       400,
-      "INVALID_BUDGET",
-      "Mức ngân sách không hợp lệ.",
+      "INVALID_TRAVELER_COUNT",
+      "Số người phải từ 1 đến 20.",
+    );
+  }
+
+  if (
+    !Number.isFinite(totalBudget) ||
+    totalBudget < MIN_TOTAL_BUDGET ||
+    totalBudget > MAX_TOTAL_BUDGET
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_TOTAL_BUDGET",
+      "Tổng ngân sách phải từ 100.000đ đến 1.000.000.000đ.",
     );
   }
 
@@ -230,7 +247,8 @@ export async function POST(
           departureTime,
           transportMode,
           duration,
-          budget,
+          travelerCount,
+          totalBudget,
           interests,
         },
         currentUser?.id ?? null,

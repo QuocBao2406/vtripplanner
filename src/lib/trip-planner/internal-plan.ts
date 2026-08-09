@@ -7,6 +7,11 @@ import {
   type TripTravelGeoPoint,
 } from "@/lib/trip-planner/travel-estimate";
 import {
+  buildTripBudgetEstimate,
+  getActivityBudgetScore,
+  type TripBudgetEstimate,
+} from "@/lib/trip-planner/budget-estimate";
+import {
   getReactionInterestSignals,
   type TripReactionInterestSignals,
 } from "@/lib/trip-planner/reaction-interest-signals";
@@ -18,11 +23,6 @@ const SAVED_PLACE_BOOST_PER_POST = 3;
 const MAX_SAVED_PLACE_BOOST = 6;
 const ARRIVAL_BUFFER_MINUTES = 60;
 
-export type InternalTripBudget =
-  | "ECONOMY"
-  | "STANDARD"
-  | "PREMIUM";
-
 export type InternalTripPlanRequest = {
   origin: string;
   destination: string;
@@ -30,7 +30,8 @@ export type InternalTripPlanRequest = {
   departureTime: string;
   transportMode: TripTransportMode;
   duration: number;
-  budget: InternalTripBudget;
+  travelerCount: number;
+  totalBudget: number;
   interests: string[];
 };
 
@@ -71,7 +72,9 @@ export type InternalTripPlan = {
   travelEstimate: TripTravelEstimate | null;
   travelEstimateMessage: string | null;
   duration: number;
-  budget: InternalTripBudget;
+  travelerCount: number;
+  totalBudget: number;
+  budgetEstimate: TripBudgetEstimate;
   interests: string[];
   generatedAt: string;
   candidateCount: number;
@@ -557,61 +560,6 @@ function getInterestMatchedLabels(
   return matchedLabels;
 }
 
-function getBudgetScore(
-  budget: InternalTripBudget,
-  entryPrice: number,
-): {
-  score: number;
-  reason: string | null;
-} {
-  if (entryPrice <= 0) {
-    return {
-      score: 2,
-      reason: "Không có phí vào cửa trong dữ liệu hiện tại",
-    };
-  }
-
-  if (budget === "ECONOMY") {
-    if (entryPrice <= 50000) {
-      return {
-        score: 3,
-        reason: "Phù hợp ngân sách tiết kiệm",
-      };
-    }
-
-    if (entryPrice <= 100000) {
-      return {
-        score: 1,
-        reason: "Chi phí tham quan vẫn ở mức vừa phải",
-      };
-    }
-
-    return {
-      score: -2,
-      reason: null,
-    };
-  }
-
-  if (budget === "STANDARD") {
-    if (entryPrice <= 150000) {
-      return {
-        score: 2,
-        reason: "Phù hợp ngân sách cân bằng",
-      };
-    }
-
-    return {
-      score: 0,
-      reason: null,
-    };
-  }
-
-  return {
-    score: 1,
-    reason: "Ngân sách thoải mái cho trải nghiệm này",
-  };
-}
-
 function scorePlaces(
   places: PlannerPlace[],
   request: InternalTripPlanRequest,
@@ -701,10 +649,13 @@ function scorePlaces(
         );
       }
 
-      const budgetResult = getBudgetScore(
-        request.budget,
-        place.entryPrice,
-      );
+      const budgetResult =
+        getActivityBudgetScore(
+          place.entryPrice,
+          request.totalBudget,
+          request.travelerCount,
+          request.duration,
+        );
 
       score += budgetResult.score;
 
@@ -1399,6 +1350,27 @@ export async function buildInternalTripPlan(
       0,
     );
 
+  const budgetEstimate =
+    buildTripBudgetEstimate({
+      totalBudget:
+        request.totalBudget,
+      travelerCount:
+        request.travelerCount,
+      duration: request.duration,
+      transportMode:
+        request.transportMode,
+      travelEstimate,
+      activities:
+        scheduledActivities.map(
+          (activity) => ({
+            entryPrice:
+              activity.entryPrice,
+            distanceFromPreviousKm:
+              activity.distanceFromPreviousKm,
+          }),
+        ),
+    });
+
   return {
     plan: {
       origin: request.origin,
@@ -1409,7 +1381,11 @@ export async function buildInternalTripPlan(
       travelEstimate,
       travelEstimateMessage,
       duration: request.duration,
-      budget: request.budget,
+      travelerCount:
+        request.travelerCount,
+      totalBudget:
+        request.totalBudget,
+      budgetEstimate,
       interests: request.interests,
       generatedAt: new Date().toISOString(),
       candidateCount:
@@ -1447,7 +1423,7 @@ export async function buildInternalTripPlan(
         "Đúng bestVisitMonths: cộng điểm mùa.",
         "Reaction: LIKE = 1, WOW = 2, LOVE = 3 rồi tăng trọng số địa điểm.",
         "Bài viết đã lưu: +3 mỗi bài liên quan, tối đa +6 điểm cho mỗi địa điểm để không lấn át các yếu tố khác.",
-        "Ngân sách dùng giá tham quan đang có trong database để ưu tiên tương đối.",
+        "Ngân sách số được quy đổi theo ngân sách/người/ngày để ưu tiên địa điểm miễn phí, giá thấp hoặc trải nghiệm có phí phù hợp khả năng chi trả.",
         "Khung giờ chỉ chọn địa điểm đang mở theo dữ liệu openingHours; các điểm trong cùng ngày được ưu tiên gần nhau khi có tọa độ.",
       ],
       days,

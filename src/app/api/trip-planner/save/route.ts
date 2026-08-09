@@ -8,7 +8,6 @@ import {
   buildInternalTripPlan,
   isValidInternalTripDuration,
   parseInternalTripStartDate,
-  type InternalTripBudget,
   type InternalTripPlanActivity,
 } from "@/lib/trip-planner/internal-plan";
 import {
@@ -20,12 +19,10 @@ import {
 
 export const runtime = "nodejs";
 
-const ALLOWED_BUDGETS =
-  new Set<InternalTripBudget>([
-    "ECONOMY",
-    "STANDARD",
-    "PREMIUM",
-  ]);
+const MIN_TRAVELER_COUNT = 1;
+const MAX_TRAVELER_COUNT = 20;
+const MIN_TOTAL_BUDGET = 100000;
+const MAX_TOTAL_BUDGET = 1000000000;
 
 const MAX_ORIGIN_LENGTH = 150;
 const MAX_DESTINATION_LENGTH = 100;
@@ -40,7 +37,8 @@ type SaveTripPayload = {
   departureTime: string;
   transportMode: TripTransportMode;
   duration: number;
-  budget: InternalTripBudget;
+  travelerCount: number;
+  totalBudget: number;
   interests: string[];
 };
 
@@ -114,12 +112,15 @@ function parsePayload(
       ? record.duration
       : Number(record.duration);
 
-  const rawBudget = readString(
-    record.budget,
-  ).toUpperCase();
+  const travelerCount =
+    typeof record.travelerCount === "number"
+      ? record.travelerCount
+      : Number(record.travelerCount);
 
-  const budget =
-    rawBudget as InternalTripBudget;
+  const totalBudget =
+    typeof record.totalBudget === "number"
+      ? record.totalBudget
+      : Number(record.totalBudget);
 
   const interests = Array.isArray(
     record.interests,
@@ -225,13 +226,32 @@ function parsePayload(
     };
   }
 
-  if (!ALLOWED_BUDGETS.has(budget)) {
+  if (
+    !Number.isInteger(travelerCount) ||
+    travelerCount < MIN_TRAVELER_COUNT ||
+    travelerCount > MAX_TRAVELER_COUNT
+  ) {
     return {
       ok: false,
       response: errorResponse(
         400,
-        "INVALID_BUDGET",
-        "Mức ngân sách không hợp lệ.",
+        "INVALID_TRAVELER_COUNT",
+        "Số người phải từ 1 đến 20.",
+      ),
+    };
+  }
+
+  if (
+    !Number.isFinite(totalBudget) ||
+    totalBudget < MIN_TOTAL_BUDGET ||
+    totalBudget > MAX_TOTAL_BUDGET
+  ) {
+    return {
+      ok: false,
+      response: errorResponse(
+        400,
+        "INVALID_TOTAL_BUDGET",
+        "Tổng ngân sách phải từ 100.000đ đến 1.000.000.000đ.",
       ),
     };
   }
@@ -263,7 +283,8 @@ function parsePayload(
       departureTime,
       transportMode: rawTransportMode,
       duration,
-      budget,
+      travelerCount,
+      totalBudget,
       interests,
     },
   };
@@ -584,12 +605,30 @@ export async function POST(
             plan.travelEstimate?.source ?? null,
           travelEstimateConfidence:
             plan.travelEstimate?.confidence ?? null,
+          travelerCount:
+            plan.travelerCount,
+          totalBudget:
+            plan.totalBudget,
+          estimatedTransportCost:
+            plan.budgetEstimate.transportCost,
+          estimatedAccommodationCost:
+            plan.budgetEstimate.accommodationCost,
+          estimatedFoodCost:
+            plan.budgetEstimate.foodCost,
+          estimatedActivityCost:
+            plan.budgetEstimate.activityCost,
+          estimatedReserveAmount:
+            plan.budgetEstimate.reserveAmount,
+          estimatedTotalCost:
+            plan.budgetEstimate.plannedCost,
+          estimatedBudgetRemaining:
+            plan.budgetEstimate.remainingAfterReserve,
           startDate,
           endDate,
           currency: "VND",
           status: "READY",
           notes:
-            "Lịch trình được lưu từ Trip Planner nội bộ của VTripPlanner; thông tin ETA là snapshot tại thời điểm lưu.",
+            "Lịch trình được lưu từ Trip Planner nội bộ của VTripPlanner; ETA và dự toán ngân sách là snapshot tại thời điểm lưu.",
           transportPreference: {
             create: {
               mainMode: mapTransportMode(
