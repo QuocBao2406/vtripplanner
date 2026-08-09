@@ -133,14 +133,18 @@ function getSlotBadgeClass(
   return "bg-indigo-50 text-indigo-700";
 }
 
-export function TripPlannerLauncher() {
+export function TripPlannerLauncher({
+  pageMode = false,
+}: {
+  pageMode?: boolean;
+}) {
   const today = useMemo(
     () => getLocalDateKey(),
     [],
   );
 
   const [isOpen, setIsOpen] =
-    useState(false);
+    useState(pageMode);
   const [destination, setDestination] =
     useState("Đà Lạt");
   const [startDate, setStartDate] =
@@ -342,19 +346,21 @@ export function TripPlannerLauncher() {
   return (
     <div className="w-full max-w-5xl">
       <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-3 lg:justify-start">
-        <button
-          type="button"
-          onClick={() => {
-            setIsOpen((current) => !current);
-            setErrorMessage("");
-          }}
-          className="min-h-11 w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400 sm:w-auto"
-        >
-          ✈ Tạo chuyến đi
-        </button>
+        {!pageMode ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen((current) => !current);
+              setErrorMessage("");
+            }}
+            className="min-h-11 w-full rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400 sm:w-auto"
+          >
+            ✈ Tạo chuyến đi
+          </button>
+        ) : null}
 
         <a
-          href="#cong-dong"
+          href={pageMode ? "/#cong-dong" : "#cong-dong"}
           className="flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/25 bg-white/5 px-5 py-3 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10 sm:w-auto"
         >
           Xem cộng đồng ↓
@@ -383,13 +389,15 @@ export function TripPlannerLauncher() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="rounded-xl border border-white/15 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
-            >
-              Thu gọn
-            </button>
+            {!pageMode ? (
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="rounded-xl border border-white/15 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              >
+                Thu gọn
+              </button>
+            ) : null}
           </div>
 
           <form

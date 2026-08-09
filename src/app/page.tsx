@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { HomeAccountNav } from "@/components/home/home-account-nav";
-import { TripPlannerLauncher } from "@/components/home/trip-planner-launcher";
 import { SocialComposerLauncher } from "@/components/social/social-composer-launcher";
 import { SocialInfiniteFeed } from "@/components/social/social-infinite-feed";
 import { SocialNotificationBell } from "@/components/social/social-notification-bell";
@@ -91,6 +90,12 @@ export default async function Home({
             </Link>
 
             <nav className="flex min-w-0 items-center gap-1 text-sm font-medium sm:gap-2">
+              <Link
+                href="/lap-lich-trinh"
+                className="hidden rounded-xl px-3 py-2 text-slate-100 transition hover:bg-white/10 hover:text-white sm:inline-flex"
+              >
+                Lập lịch
+              </Link>
               <a
                 href="#cong-dong"
                 className="hidden rounded-xl px-3 py-2 text-slate-100 transition hover:bg-white/10 hover:text-white sm:inline-flex"
@@ -128,15 +133,34 @@ export default async function Home({
               câu chuyện, cảnh đẹp và gợi ý đúng mùa sẽ chờ ở ngay phía dưới.
             </p>
 
-            <div className="mt-8">
-              <TripPlannerLauncher />
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                href="/lap-lich-trinh"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-400 sm:w-auto"
+              >
+                ✈ Tạo chuyến đi
+              </Link>
+
+              <a
+                href="#cong-dong"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/25 bg-white/5 px-5 py-3 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10 sm:w-auto"
+              >
+                Xem cộng đồng ↓
+              </a>
+
+              <Link
+                href="/chuyen-di-cua-toi"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-white/15 bg-slate-950/25 px-5 py-3 text-sm font-medium text-slate-100 backdrop-blur transition hover:bg-white/10 sm:w-auto"
+              >
+                🧳 Chuyến đi của tôi
+              </Link>
             </div>
 
             <div className="mt-10 flex flex-wrap gap-x-8 gap-y-4 text-sm text-slate-100">
               <div>
                 <p className="font-semibold text-white">Khởi tạo nhanh</p>
                 <p className="mt-1 text-slate-200">
-                  Chỉ bấm nút khi bạn thực sự muốn tạo trip.
+                  Trip Planner mở ở trang riêng, không kéo dài Homepage.
                 </p>
               </div>
               <div>
