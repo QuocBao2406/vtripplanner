@@ -400,16 +400,18 @@ export default async function AdminPage() {
               Các module quản lý
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Dashboard dùng dữ liệu thật. Khu vực và Địa điểm đã có màn hình
-              quản lý trực tiếp; các module còn lại sẽ được mở lần lượt.
+              Dashboard dùng dữ liệu thật. Người dùng, Đối tác, Khu vực, Địa điểm
+              và Voucher đã có màn hình quản lý trực tiếp; Bài viết là module tiếp theo.
             </p>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <ModuleCard
               title="Người dùng"
-              description="Xem tài khoản, trạng thái hoạt động và vai trò được cấp."
+              description="Tìm kiếm tài khoản, xem hồ sơ và khóa/mở tài khoản thường."
               icon={Users}
+              badge="Quản lý"
+              href="/quan-tri/nguoi-dung"
             />
             <ModuleCard
               title="Đối tác"
