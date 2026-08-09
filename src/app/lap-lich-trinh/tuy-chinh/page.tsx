@@ -45,10 +45,12 @@ export default function CustomizeTripPlanPage() {
             Tùy chỉnh lịch trình trước khi lưu
           </h1>
           <p className="mt-3 text-sm leading-7 text-slate-600 sm:text-base">
-            Dùng ↑/↓ để đổi thứ tự trong cùng ngày, thay hoặc xóa địa điểm và
-            thêm điểm mới vào khung còn trống. Chặng di chuyển đầu chuyến là
-            activity hệ thống nên không chỉnh sửa. Chỉ khi xác nhận lưu thì
-            backend mới tạo Trip READY từ đúng draft này.
+            Mỗi hoạt động có giờ riêng để bạn chỉnh chi tiết theo cách muốn:
+            đổi giờ, dùng ↑/↓ để đổi thứ tự, thay, xóa hoặc thêm địa điểm mới.
+            Draft không còn bị khóa ở 3 hoạt động/ngày; hệ thống chỉ cảnh báo
+            khi timeline quá dày. Chặng di chuyển đầu chuyến là activity hệ
+            thống nên không chỉnh sửa. Chỉ khi xác nhận lưu thì backend mới
+            tạo Trip READY từ đúng draft này.
           </p>
         </div>
 

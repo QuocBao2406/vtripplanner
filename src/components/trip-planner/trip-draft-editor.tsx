@@ -10,7 +10,6 @@ import {
 
 import {
   isStoredTripDraft,
-  MAX_DRAFT_ACTIVITIES_PER_DAY,
   toTripDraftDayInputs,
   TRIP_DRAFT_STORAGE_KEY,
   type StoredTripDraft,
@@ -21,29 +20,10 @@ import {
   type TripDraftPlan,
 } from "@/lib/trip-planner/draft-itinerary";
 
-const SLOT_TEMPLATES = [
-  {
-    slot: "MORNING" as const,
-    slotLabel: "Buổi sáng",
-    time: "08:30",
-    minutes: 8 * 60 + 30,
-    latestMinutes: 11 * 60,
-  },
-  {
-    slot: "AFTERNOON" as const,
-    slotLabel: "Buổi chiều",
-    time: "14:00",
-    minutes: 14 * 60,
-    latestMinutes: 16 * 60 + 30,
-  },
-  {
-    slot: "EVENING" as const,
-    slotLabel: "Buổi tối",
-    time: "19:00",
-    minutes: 19 * 60,
-    latestMinutes: 20 * 60 + 30,
-  },
-];
+const DEFAULT_FIRST_ACTIVITY_TIME = "08:00";
+const DEFAULT_ACTIVITY_GAP_MINUTES = 90;
+const DENSE_TIMELINE_GAP_MINUTES = 60;
+const BUSY_DAY_ACTIVITY_COUNT = 7;
 
 type DraftOptionsResponse = {
   ok?: boolean;
@@ -148,45 +128,183 @@ function getVietnamReadyState(
   };
 }
 
-function getAllowedSlots(
-  plan: TripDraftPlan,
-  dateKey: string,
-) {
-  const readyState = getVietnamReadyState(plan);
+function parseTimeToMinutes(
+  value: string,
+): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
 
-  if (!readyState || dateKey > readyState.dateKey) {
-    return SLOT_TEMPLATES;
+  if (!match) {
+    return null;
   }
 
-  if (dateKey < readyState.dateKey) {
-    return [];
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
   }
 
-  const readyMinutes =
-    Math.ceil(readyState.minutes / 30) * 30;
+  return hours * 60 + minutes;
+}
 
-  return SLOT_TEMPLATES.flatMap((slot) => {
-    const minutes = Math.max(
-      slot.minutes,
-      readyMinutes,
-    );
+function formatMinutes(minutes: number): string {
+  const normalized = Math.min(
+    23 * 60 + 59,
+    Math.max(0, minutes),
+  );
 
-    if (minutes > slot.latestMinutes) {
-      return [];
-    }
+  return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(
+    normalized % 60,
+  ).padStart(2, "0")}`;
+}
 
-    return [
-      {
-        ...slot,
-        minutes,
-        time: `${String(
-          Math.floor(minutes / 60),
-        ).padStart(2, "0")}:${String(
-          minutes % 60,
-        ).padStart(2, "0")}`,
-      },
-    ];
+function getScheduleForTime(
+  time: string,
+): Pick<TripDraftActivity, "slot" | "slotLabel" | "time"> {
+  const minutes = parseTimeToMinutes(time) ?? 0;
+
+  if (minutes >= 5 * 60 && minutes < 12 * 60) {
+    return {
+      slot: "MORNING",
+      slotLabel: "Buổi sáng",
+      time,
+    };
+  }
+
+  if (minutes >= 12 * 60 && minutes < 18 * 60) {
+    return {
+      slot: "AFTERNOON",
+      slotLabel: "Buổi chiều",
+      time,
+    };
+  }
+
+  return {
+    slot: "EVENING",
+    slotLabel: minutes < 5 * 60 ? "Rạng sáng" : "Buổi tối",
+    time,
+  };
+}
+
+function sortActivitiesByTime(
+  activities: TripDraftActivity[],
+): TripDraftActivity[] {
+  return [...activities].sort((left, right) => {
+    const leftMinutes = parseTimeToMinutes(left.time) ?? 0;
+    const rightMinutes = parseTimeToMinutes(right.time) ?? 0;
+
+    return leftMinutes - rightMinutes;
   });
+}
+
+function getDefaultAddTime(
+  plan: TripDraftPlan,
+  day: TripDraftDay,
+): string {
+  const lastMinutes = day.activities.reduce(
+    (latest, activity) =>
+      Math.max(
+        latest,
+        parseTimeToMinutes(activity.time) ?? -1,
+      ),
+    -1,
+  );
+
+  if (lastMinutes >= 0) {
+    return formatMinutes(
+      lastMinutes + DEFAULT_ACTIVITY_GAP_MINUTES,
+    );
+  }
+
+  const readyState = getVietnamReadyState(plan);
+  const defaultMinutes =
+    parseTimeToMinutes(DEFAULT_FIRST_ACTIVITY_TIME) ?? 8 * 60;
+
+  if (!readyState || day.date > readyState.dateKey) {
+    return DEFAULT_FIRST_ACTIVITY_TIME;
+  }
+
+  if (day.date < readyState.dateKey) {
+    return DEFAULT_FIRST_ACTIVITY_TIME;
+  }
+
+  return formatMinutes(
+    Math.max(
+      defaultMinutes,
+      Math.ceil(readyState.minutes / 30) * 30,
+    ),
+  );
+}
+
+function getDayTimelineWarnings(
+  plan: TripDraftPlan,
+  day: TripDraftDay,
+): string[] {
+  const warnings: string[] = [];
+  const readyState = getVietnamReadyState(plan);
+  const sortedActivities = sortActivitiesByTime(day.activities);
+
+  if (
+    day.activities.length >= BUSY_DAY_ACTIVITY_COUNT
+  ) {
+    warnings.push(
+      `Ngày này có ${day.activities.length} hoạt động. Bạn vẫn có thể tiếp tục custom, nhưng nên chừa thời gian di chuyển và nghỉ.`,
+    );
+  }
+
+  for (
+    let index = 1;
+    index < sortedActivities.length;
+    index += 1
+  ) {
+    const previousMinutes =
+      parseTimeToMinutes(sortedActivities[index - 1].time);
+    const currentMinutes =
+      parseTimeToMinutes(sortedActivities[index].time);
+
+    if (
+      previousMinutes !== null &&
+      currentMinutes !== null &&
+      currentMinutes - previousMinutes <
+        DENSE_TIMELINE_GAP_MINUTES
+    ) {
+      warnings.push(
+        "Có hai hoạt động cách nhau dưới 60 phút. Timeline có thể quá dày nếu cần thời gian di chuyển.",
+      );
+      break;
+    }
+  }
+
+  if (readyState && day.activities.length > 0) {
+    if (day.date < readyState.dateKey) {
+      warnings.push(
+        "Ngày này nằm trước thời điểm dự kiến sẵn sàng tại điểm đến; backend sẽ không cho lưu hoạt động trước ETA.",
+      );
+    } else if (day.date === readyState.dateKey) {
+      const readyMinutes =
+        Math.ceil(readyState.minutes / 30) * 30;
+      const hasActivityBeforeReady = day.activities.some(
+        (activity) =>
+          (parseTimeToMinutes(activity.time) ?? 0) <
+          readyMinutes,
+      );
+
+      if (hasActivityBeforeReady) {
+        warnings.push(
+          `Có hoạt động trước khoảng ${formatMinutes(readyMinutes)} (ETA + 60 phút). Hãy đổi giờ trước khi lưu.`,
+        );
+      }
+    }
+  }
+
+  return warnings;
 }
 
 function recalculateBudget(
@@ -228,13 +346,10 @@ function recalculateBudget(
 
 function optionToActivity(
   option: TripDraftPlaceOption,
-  schedule: Pick<
-    TripDraftActivity,
-    "slot" | "slotLabel" | "time"
-  >,
+  time: string,
 ): TripDraftActivity {
   return {
-    ...schedule,
+    ...getScheduleForTime(time),
     placeId: option.placeId,
     placeName: option.placeName,
     categoryName: option.categoryName,
@@ -268,6 +383,8 @@ export function TripDraftEditor() {
   const [replacementTarget, setReplacementTarget] =
     useState<ReplacementTarget>(null);
   const [addSelectionByDay, setAddSelectionByDay] =
+    useState<Record<number, string>>({});
+  const [addTimeByDay, setAddTimeByDay] =
     useState<Record<number, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -545,11 +662,10 @@ export function TripDraftEditor() {
               (activity, activityIndex) =>
                 activityIndex ===
                 replacementTarget.activityIndex
-                  ? optionToActivity(option, {
-                      slot: activity.slot,
-                      slotLabel: activity.slotLabel,
-                      time: activity.time,
-                    })
+                  ? optionToActivity(
+                      option,
+                      activity.time,
+                    )
                   : activity,
             ),
           }
@@ -558,6 +674,57 @@ export function TripDraftEditor() {
 
     persistDays(nextDays);
     setReplacementTarget(null);
+    setOptionsMessage("");
+  }
+
+  function updateActivityTime(
+    dayIndex: number,
+    activityIndex: number,
+    nextTime: string,
+  ) {
+    const nextMinutes = parseTimeToMinutes(nextTime);
+    const day = days[dayIndex];
+
+    if (!day || nextMinutes === null) {
+      return;
+    }
+
+    const hasDuplicateTime = day.activities.some(
+      (activity, index) =>
+        index !== activityIndex &&
+        activity.time === nextTime,
+    );
+
+    if (hasDuplicateTime) {
+      setOptionsMessage(
+        `Ngày ${day.dayNumber} đã có hoạt động lúc ${nextTime}. Hãy chọn giờ khác.`,
+      );
+      return;
+    }
+
+    const nextDays = days.map((item, index) =>
+      index === dayIndex
+        ? {
+            ...item,
+            activities: sortActivitiesByTime(
+              item.activities.map(
+                (activity, indexToUpdate) =>
+                  indexToUpdate === activityIndex
+                    ? {
+                        ...activity,
+                        ...getScheduleForTime(nextTime),
+                        openingNote:
+                          "Sẽ được backend kiểm tra lại sau khi đổi giờ.",
+                        distanceFromPreviousKm: null,
+                      }
+                    : activity,
+              ),
+            ),
+          }
+        : item,
+    );
+
+    persistDays(nextDays);
     setOptionsMessage("");
   }
 
@@ -574,10 +741,22 @@ export function TripDraftEditor() {
     const option = options.find(
       (candidate) => candidate.placeId === optionId,
     );
+    const selectedTime =
+      addTimeByDay[day.dayNumber] ??
+      getDefaultAddTime(draft.plan, day);
+    const selectedMinutes =
+      parseTimeToMinutes(selectedTime);
 
     if (!option) {
       setOptionsMessage(
         "Hãy chọn địa điểm muốn thêm.",
+      );
+      return;
+    }
+
+    if (selectedMinutes === null) {
+      setOptionsMessage(
+        "Hãy chọn thời gian hợp lệ cho hoạt động.",
       );
       return;
     }
@@ -589,54 +768,48 @@ export function TripDraftEditor() {
       return;
     }
 
-    const allowedSlots = getAllowedSlots(
-      draft.plan,
-      day.date,
-    );
-    const usedTimes = new Set(
-      day.activities.map((activity) => activity.time),
-    );
-    const nextSlot = allowedSlots.find(
-      (slot) => !usedTimes.has(slot.time),
-    );
-
     if (
-      day.activities.length >=
-        MAX_DRAFT_ACTIVITIES_PER_DAY ||
-      !nextSlot
+      day.activities.some(
+        (activity) => activity.time === selectedTime,
+      )
     ) {
       setOptionsMessage(
-        "Ngày này không còn khung giờ trống phù hợp với ETA hiện tại.",
+        `Ngày ${day.dayNumber} đã có hoạt động lúc ${selectedTime}. Hãy chọn giờ khác.`,
+      );
+      return;
+    }
+
+    const readyState = getVietnamReadyState(draft.plan);
+
+    if (
+      readyState &&
+      (
+        day.date < readyState.dateKey ||
+        (
+          day.date === readyState.dateKey &&
+          selectedMinutes <
+            Math.ceil(readyState.minutes / 30) * 30
+        )
+      )
+    ) {
+      setOptionsMessage(
+        "Thời gian này nằm trước ETA + 60 phút buffer. Hãy chọn giờ muộn hơn hoặc thêm vào ngày sau.",
       );
       return;
     }
 
     const nextActivity = optionToActivity(
       option,
-      {
-        slot: nextSlot.slot,
-        slotLabel: nextSlot.slotLabel,
-        time: nextSlot.time,
-      },
-    );
-    const slotOrder = new Map(
-      allowedSlots.map((slot, index) => [
-        slot.time,
-        index,
-      ]),
+      selectedTime,
     );
     const nextDays = days.map((item, index) =>
       index === dayIndex
         ? {
             ...item,
-            activities: [
+            activities: sortActivitiesByTime([
               ...item.activities,
               nextActivity,
-            ].sort(
-              (left, right) =>
-                (slotOrder.get(left.time) ?? 99) -
-                (slotOrder.get(right.time) ?? 99),
-            ),
+            ]),
           }
         : item,
     );
@@ -645,6 +818,12 @@ export function TripDraftEditor() {
     setAddSelectionByDay((current) => ({
       ...current,
       [day.dayNumber]: "",
+    }));
+    setAddTimeByDay((current) => ({
+      ...current,
+      [day.dayNumber]: formatMinutes(
+        selectedMinutes + DEFAULT_ACTIVITY_GAP_MINUTES,
+      ),
     }));
     setOptionsMessage("");
   }
@@ -715,7 +894,7 @@ export function TripDraftEditor() {
       if (!response.ok || !payload.savedTrip) {
         setSaveMessage(
           payload.message ??
-            "Không thể lưu draft. Hãy kiểm tra lại địa điểm và khung giờ.",
+            "Không thể lưu draft. Hãy kiểm tra lại địa điểm, thời gian và cảnh báo timeline.",
         );
         return;
       }
@@ -881,8 +1060,8 @@ export function TripDraftEditor() {
           </p>
           <p className="mt-2 text-xs leading-5 text-slate-500">
             Khi chỉnh draft, client cập nhật ngay phí hoạt động và tổng ngân
-            sách. Backend sẽ tính lại cả khoảng cách nội bộ, openingHours và
-            snapshot chi phí khi bạn xác nhận lưu.
+            sách. Backend sẽ tính lại cả timeline, khoảng cách nội bộ,
+            openingHours và snapshot chi phí khi bạn xác nhận lưu.
           </p>
         </section>
       ) : null}
@@ -895,20 +1074,18 @@ export function TripDraftEditor() {
 
       <div className="space-y-5">
         {days.map((day, dayIndex) => {
-          const allowedSlots = getAllowedSlots(
+          const dayWarnings = getDayTimelineWarnings(
             draft.plan,
-            day.date,
+            day,
           );
-          const usedTimes = new Set(
-            day.activities.map((activity) => activity.time),
-          );
-          const hasFreeSlot = allowedSlots.some(
-            (slot) => !usedTimes.has(slot.time),
-          );
-          const canAdd =
-            day.activities.length <
-              MAX_DRAFT_ACTIVITIES_PER_DAY &&
-            hasFreeSlot;
+          const readyState =
+            getVietnamReadyState(draft.plan);
+          const dayBeforeReady =
+            readyState !== null &&
+            day.date < readyState.dateKey;
+          const addTime =
+            addTimeByDay[day.dayNumber] ??
+            getDefaultAddTime(draft.plan, day);
 
           return (
             <section
@@ -925,14 +1102,21 @@ export function TripDraftEditor() {
                   </h3>
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                  {day.activities.length}/3 hoạt động
+                  {day.activities.length} hoạt động
                 </span>
               </div>
 
-              {day.activities.length === 3 ? (
-                <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  ⚠ Ngày này đã đủ 3 khung hoạt động; thêm tiếp sẽ làm lịch quá dày.
-                </p>
+              {dayWarnings.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {dayWarnings.map((warning) => (
+                    <p
+                      key={warning}
+                      className="rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800"
+                    >
+                      ⚠ {warning}
+                    </p>
+                  ))}
+                </div>
               ) : null}
 
               <div className="mt-4 space-y-3">
@@ -955,13 +1139,27 @@ export function TripDraftEditor() {
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getSlotBadgeClass(
+                              <label
+                                className={`inline-flex items-center gap-2 rounded-xl px-2.5 py-1 text-[11px] font-semibold ${getSlotBadgeClass(
                                   activity.slot,
                                 )}`}
                               >
-                                {activity.time} · {activity.slotLabel}
-                              </span>
+                                <input
+                                  type="time"
+                                  step={1800}
+                                  value={activity.time}
+                                  onChange={(event) =>
+                                    updateActivityTime(
+                                      dayIndex,
+                                      activityIndex,
+                                      event.target.value,
+                                    )
+                                  }
+                                  className="bg-transparent font-bold outline-none"
+                                  aria-label={`Giờ bắt đầu ${activity.placeName}`}
+                                />
+                                <span>{activity.slotLabel}</span>
+                              </label>
                               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">
                                 {activity.categoryName}
                               </span>
@@ -1093,8 +1291,27 @@ export function TripDraftEditor() {
               </div>
 
               <div className="mt-4 border-t border-slate-100 pt-4">
-                {canAdd ? (
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                {dayBeforeReady ? (
+                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
+                    Ngày này nằm trước ETA + 60 phút buffer nên không thể thêm
+                    hoạt động tại điểm đến. Bạn vẫn có thể để ngày này dành cho
+                    di chuyển.
+                  </p>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_auto]">
+                    <input
+                      type="time"
+                      step={1800}
+                      value={addTime}
+                      onChange={(event) =>
+                        setAddTimeByDay((current) => ({
+                          ...current,
+                          [day.dayNumber]: event.target.value,
+                        }))
+                      }
+                      className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-emerald-500"
+                      aria-label={`Giờ cho hoạt động mới ngày ${day.dayNumber}`}
+                    />
                     <select
                       value={
                         addSelectionByDay[day.dayNumber] ?? ""
@@ -1109,7 +1326,7 @@ export function TripDraftEditor() {
                         isLoadingOptions ||
                         availableOptions.length === 0
                       }
-                      className="min-h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-emerald-500 disabled:bg-slate-100"
+                      className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-emerald-500 disabled:bg-slate-100"
                     >
                       <option value="">
                         {isLoadingOptions
@@ -1133,18 +1350,22 @@ export function TripDraftEditor() {
                       onClick={() => addActivity(dayIndex)}
                       disabled={
                         isLoadingOptions ||
-                        !addSelectionByDay[day.dayNumber]
+                        !addSelectionByDay[day.dayNumber] ||
+                        !addTime
                       }
                       className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white disabled:bg-slate-300"
                     >
-                      + Thêm địa điểm
+                      + Thêm hoạt động
                     </button>
                   </div>
-                ) : (
-                  <p className="text-xs leading-5 text-slate-500">
-                    Không còn khung giờ trống phù hợp cho ngày này.
-                  </p>
                 )}
+                {!dayBeforeReady ? (
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Bạn có thể thêm nhiều hoạt động theo mức chi tiết mong muốn.
+                    Hệ thống không khóa ở 3 hoạt động/ngày; timeline quá dày sẽ
+                    được cảnh báo và backend kiểm tra lại ETA/openingHours khi lưu.
+                  </p>
+                ) : null}
               </div>
             </section>
           );
@@ -1158,7 +1379,7 @@ export function TripDraftEditor() {
               {totalActivities} hoạt động trong draft
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Khi xác nhận, backend kiểm tra lại Place, trùng lặp, ETA,
+              Khi xác nhận, backend kiểm tra lại Place, thứ tự thời gian, ETA,
               openingHours và chi phí; Trip được lưu là snapshot không tự đổi.
             </p>
           </div>

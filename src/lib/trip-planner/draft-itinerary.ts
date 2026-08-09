@@ -1,7 +1,6 @@
 export const TRIP_DRAFT_STORAGE_KEY =
   "vtripplanner:trip-draft:v1";
 
-export const MAX_DRAFT_ACTIVITIES_PER_DAY = 3;
 
 export type TripDraftTransportMode =
   | "MOTORBIKE"

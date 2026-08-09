@@ -31,7 +31,8 @@ const MAX_ORIGIN_LENGTH = 150;
 const MAX_DESTINATION_LENGTH = 100;
 const MAX_INTERESTS = 5;
 const MAX_INTEREST_LENGTH = 80;
-const ACTIVITY_DURATION_MINUTES = 120;
+const MAX_DRAFT_ACTIVITY_PAYLOAD_PER_DAY = 24;
+const DEFAULT_ACTIVITY_DURATION_MINUTES = 90;
 
 type SaveTripPayload = {
   origin: string;
@@ -130,14 +131,14 @@ function parseDraftDays(
       dayNumber > 7 ||
       !datePattern.test(date) ||
       !Array.isArray(activities) ||
-      activities.length > 3
+      activities.length > MAX_DRAFT_ACTIVITY_PAYLOAD_PER_DAY
     ) {
       return {
         ok: false,
         response: errorResponse(
           400,
           "INVALID_DRAFT_DAY",
-          "Ngày hoặc số hoạt động trong draft không hợp lệ.",
+          "Ngày hoặc dữ liệu hoạt động trong draft không hợp lệ.",
         ),
       };
     }
@@ -833,13 +834,30 @@ export async function POST(
                           activity.time,
                         );
 
-                      const endsAt =
+                      const defaultEndsAt =
                         new Date(
                           startsAt.getTime() +
-                            ACTIVITY_DURATION_MINUTES *
+                            DEFAULT_ACTIVITY_DURATION_MINUTES *
                               60 *
                               1000,
                         );
+                      const nextActivity =
+                        day.activities[activityIndex + 1];
+                      const nextStartsAt = nextActivity
+                        ? activityStartDateTime(
+                            day.date,
+                            nextActivity.time,
+                          )
+                        : null;
+                      const endsAt =
+                        nextStartsAt && nextStartsAt > startsAt
+                          ? new Date(
+                              Math.min(
+                                defaultEndsAt.getTime(),
+                                nextStartsAt.getTime(),
+                              ),
+                            )
+                          : defaultEndsAt;
 
                       return {
                         place: {

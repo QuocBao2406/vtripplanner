@@ -22,6 +22,7 @@ const MAX_DURATION_DAYS = 7;
 const SAVED_PLACE_BOOST_PER_POST = 3;
 const MAX_SAVED_PLACE_BOOST = 6;
 const ARRIVAL_BUFFER_MINUTES = 60;
+const MAX_CUSTOM_DRAFT_ACTIVITIES_PER_DAY = 24;
 
 export type InternalTripPlanRequest = {
   origin: string;
@@ -1019,6 +1020,63 @@ function roundUpMinutes(
   return Math.ceil(minutes / step) * step;
 }
 
+function parseDraftTimeToMinutes(
+  value: string,
+): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function getFlexibleDraftSchedule(
+  minutes: number,
+): {
+  slot: InternalTripPlanActivity["slot"];
+  slotLabel: string;
+  time: string;
+} {
+  if (minutes >= 5 * 60 && minutes < 12 * 60) {
+    return {
+      slot: "MORNING",
+      slotLabel: "Buổi sáng",
+      time: formatMinutes(minutes),
+    };
+  }
+
+  if (minutes >= 12 * 60 && minutes < 18 * 60) {
+    return {
+      slot: "AFTERNOON",
+      slotLabel: "Buổi chiều",
+      time: formatMinutes(minutes),
+    };
+  }
+
+  return {
+    slot: "EVENING",
+    slotLabel:
+      minutes < 5 * 60 ? "Rạng sáng" : "Buổi tối",
+    time: formatMinutes(minutes),
+  };
+}
+
 function getVietnamReadyState(
   travelEstimate: TripTravelEstimate | null,
 ): ReadyForActivitiesState | null {
@@ -1671,10 +1729,13 @@ export async function buildCustomizedInternalTripPlan(
       );
     }
 
-    if (dayInput.activities.length > 3) {
+    if (
+      dayInput.activities.length >
+      MAX_CUSTOM_DRAFT_ACTIVITIES_PER_DAY
+    ) {
       throw new InternalTripDraftValidationError(
-        "DRAFT_DAY_TOO_DENSE",
-        `Ngày ${dayNumber} chỉ hỗ trợ tối đa 3 hoạt động trong bản MVP.`,
+        "DRAFT_ACTIVITY_PAYLOAD_TOO_LARGE",
+        `Ngày ${dayNumber} có quá nhiều hoạt động để xử lý an toàn trong một lần lưu.`,
       );
     }
 
@@ -1683,14 +1744,10 @@ export async function buildCustomizedInternalTripPlan(
       context.startDate.getUTCDate() + dayNumber - 1,
     );
     const dayOfWeek = DAY_OF_WEEK[date.getUTCDay()];
-    const allowedSlots = getSlotsForDate(
-      dateKey,
-      readyState,
-    );
     const usedTimes = new Set<string>();
     const activities: InternalTripPlanActivity[] = [];
     let previousPlace: ScoredPlannerPlace | null = null;
-    let previousSlotIndex = -1;
+    let previousMinutes = -1;
 
     for (const activityInput of dayInput.activities) {
       const place = scoredById.get(
@@ -1711,33 +1768,51 @@ export async function buildCustomizedInternalTripPlan(
         );
       }
 
-      const slotIndex = allowedSlots.findIndex(
-        (candidate) =>
-          candidate.time === activityInput.time,
+      const activityMinutes = parseDraftTimeToMinutes(
+        activityInput.time,
       );
-      const slot = allowedSlots[slotIndex];
 
       if (
-        !slot ||
-        usedTimes.has(slot.time) ||
-        slotIndex <= previousSlotIndex
+        activityMinutes === null ||
+        usedTimes.has(activityInput.time) ||
+        activityMinutes <= previousMinutes
       ) {
         throw new InternalTripDraftValidationError(
           "DRAFT_SLOT_INVALID",
-          `Khung giờ ${activityInput.time} ở ngày ${dayNumber} không còn hợp lệ hoặc thứ tự draft không đúng thời gian.`,
+          `Thời gian ${activityInput.time} ở ngày ${dayNumber} không hợp lệ, bị trùng hoặc không tăng dần theo timeline.`,
         );
       }
 
+      if (
+        readyState &&
+        (
+          dateKey < readyState.dateKey ||
+          (
+            dateKey === readyState.dateKey &&
+            activityMinutes <
+              roundUpMinutes(readyState.minutes)
+          )
+        )
+      ) {
+        throw new InternalTripDraftValidationError(
+          "DRAFT_BEFORE_ARRIVAL",
+          `Hoạt động lúc ${activityInput.time} ngày ${dayNumber} diễn ra trước ETA + ${ARRIVAL_BUFFER_MINUTES} phút buffer. Hãy đổi giờ hoặc chuyển hoạt động sang ngày sau.`,
+        );
+      }
+
+      const schedule = getFlexibleDraftSchedule(
+        activityMinutes,
+      );
       const openingState = getOpeningState(
         place,
         dayOfWeek,
-        slot.minutes,
+        activityMinutes,
       );
 
       if (!openingState.canVisit) {
         throw new InternalTripDraftValidationError(
           "DRAFT_PLACE_CLOSED",
-          `“${place.name}” không khớp giờ mở cửa ở ${slot.time} ngày ${dayNumber}. Hãy thay địa điểm hoặc đổi thứ tự.`,
+          `“${place.name}” không khớp giờ mở cửa ở ${schedule.time} ngày ${dayNumber}. Hãy thay địa điểm hoặc đổi giờ.`,
         );
       }
 
@@ -1746,9 +1821,9 @@ export async function buildCustomizedInternalTripPlan(
         : null;
 
       activities.push({
-        slot: slot.slot,
-        slotLabel: slot.label,
-        time: slot.time,
+        slot: schedule.slot,
+        slotLabel: schedule.slotLabel,
+        time: schedule.time,
         placeId: place.id,
         placeName: place.name,
         categoryName: place.category.name,
@@ -1766,8 +1841,8 @@ export async function buildCustomizedInternalTripPlan(
       });
 
       usedPlaceIds.add(place.id);
-      usedTimes.add(slot.time);
-      previousSlotIndex = slotIndex;
+      usedTimes.add(schedule.time);
+      previousMinutes = activityMinutes;
       previousPlace = place;
     }
 
@@ -1777,7 +1852,9 @@ export async function buildCustomizedInternalTripPlan(
       dateLabel: formatDateLabel(date),
       summary:
         activities.length > 0
-          ? "Lịch ngày này đã được bạn tùy chỉnh; hệ thống xác minh lại địa điểm, giờ mở cửa và ngân sách trước khi lưu."
+          ? activities.length >= 7
+            ? "Lịch ngày này được tùy chỉnh rất chi tiết; hãy dành đủ thời gian di chuyển và nghỉ giữa các hoạt động."
+            : "Lịch ngày này đã được bạn tùy chỉnh; hệ thống xác minh lại địa điểm, giờ mở cửa và ngân sách trước khi lưu."
           : "Ngày này đang để trống trong draft tùy chỉnh.",
       activities,
     });
@@ -1865,7 +1942,7 @@ export async function buildCustomizedInternalTripPlan(
       scoringGuide: [
         "Draft được lưu đúng thứ tự người dùng đã chỉnh; backend không regenerate lịch trình trước khi save.",
         "Mọi Place ID được kiểm tra lại phải VERIFIED, active và còn thuộc điểm đến đã chọn.",
-        "Khung giờ và openingHours được kiểm tra lại; ngày đầu vẫn tuân thủ ETA + 60 phút buffer khi có ETA.",
+        "Mỗi hoạt động dùng giờ do người dùng chọn; backend kiểm tra thứ tự thời gian và openingHours, ngày đầu vẫn tuân thủ ETA + 60 phút buffer.",
         "Dự toán ngân sách được tính lại từ draft đã chỉnh trước khi tạo Trip snapshot.",
       ],
       days,
