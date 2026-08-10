@@ -1214,7 +1214,7 @@ export function TripPlannerLauncher({
               </div>
 
               <div className="border-t border-slate-200 bg-white px-5 py-4 text-xs leading-5 text-slate-500 sm:px-6">
-                Lịch trình này được tạo bằng thuật toán nội bộ từ dữ liệu VTripPlanner. ETA ưu tiên Google Routes khi server có cấu hình GOOGLE_MAPS_ROUTES_API_KEY; nếu không khả dụng, hệ thống dùng ước tính nội bộ và ghi rõ nguồn. Giá, mùa và giờ mở cửa chỉ phản ánh dữ liệu hiện có trong đồ án.
+                Lịch trình được đề xuất dựa trên điểm đến, thời gian, ngân sách và sở thích của bạn. Thời gian di chuyển, giá và giờ mở cửa có thể thay đổi theo thực tế.
               </div>
             </div>
           ) : null}

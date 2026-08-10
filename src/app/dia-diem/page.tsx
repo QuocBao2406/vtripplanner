@@ -275,7 +275,7 @@ export default async function PlacesPage({ searchParams }: PlacesPageProps) {
       <section className="border-b border-emerald-900/10 bg-gradient-to-br from-emerald-800 via-teal-800 to-cyan-800 text-white">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-18 lg:px-8">
           <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-emerald-100">
-            Dữ liệu mẫu phục vụ đồ án
+            Dữ liệu địa điểm
           </p>
           <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl">
             Khám phá địa điểm cho hành trình tiếp theo

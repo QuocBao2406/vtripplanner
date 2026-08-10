@@ -319,7 +319,7 @@ export async function getPublicPlaceCatalog(
       coverImageUrl: coverImage
         ? getPublicStorageUrl(coverImage.storagePath)
         : null,
-      coverImageAlt: coverImage?.altText ?? `Ảnh minh họa ${place.name}`,
+      coverImageAlt: coverImage?.altText ?? `Ảnh ${place.name}`,
       minimumPrice: minimumPrice
         ? {
             label: minimumPrice.label,
