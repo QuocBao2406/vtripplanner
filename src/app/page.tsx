@@ -4,6 +4,7 @@ import { HomeAccountNav } from "@/components/home/home-account-nav";
 import { SocialComposerLauncher } from "@/components/social/social-composer-launcher";
 import { SocialInfiniteFeed } from "@/components/social/social-infinite-feed";
 import { SocialNotificationBell } from "@/components/social/social-notification-bell";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import {
   getPublicSocialFeed,
   getPublicSocialFeedPostById,
@@ -85,9 +86,7 @@ export default async function Home({
             <Link
               href="/"
               className="shrink-0 text-lg font-bold tracking-tight text-white sm:text-xl"
-            >
-              VTripPlanner
-            </Link>
+            ><BrandLogo /></Link>
 
             <nav className="flex min-w-0 items-center gap-1 text-sm font-medium sm:gap-2">
               <Link
