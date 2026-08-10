@@ -2,6 +2,7 @@
 
 import {
   type FormEvent,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -21,6 +22,18 @@ type TripTransportMode =
   | "MOTORBIKE"
   | "CAR"
   | "COACH";
+
+type TripPlannerProvinceOption = {
+  id: string;
+  name: string;
+};
+
+type ProvinceOptionsApiResponse = {
+  ok?: boolean;
+  origins?: TripPlannerProvinceOption[];
+  destinations?: TripPlannerProvinceOption[];
+  message?: string;
+};
 
 type TripTravelEstimate = {
   origin: string;
@@ -272,10 +285,26 @@ export function TripPlannerLauncher({
 
   const [isOpen, setIsOpen] =
     useState(pageMode);
-  const [origin, setOrigin] =
-    useState("TP. Hồ Chí Minh");
-  const [destination, setDestination] =
-    useState("Đà Lạt");
+  const [
+    originProvinceId,
+    setOriginProvinceId,
+  ] = useState("");
+  const [
+    destinationProvinceId,
+    setDestinationProvinceId,
+  ] = useState("");
+  const [
+    originOptions,
+    setOriginOptions,
+  ] = useState<TripPlannerProvinceOption[]>([]);
+  const [
+    destinationOptions,
+    setDestinationOptions,
+  ] = useState<TripPlannerProvinceOption[]>([]);
+  const [
+    provinceOptionsLoading,
+    setProvinceOptionsLoading,
+  ] = useState(true);
   const [startDate, setStartDate] =
     useState(defaultDeparture.date);
   const [departureTime, setDepartureTime] =
@@ -302,6 +331,126 @@ export function TripPlannerLauncher({
   ] = useState<string[]>([]);
   const [plan, setPlan] =
     useState<TripPlan | null>(null);
+
+  const selectedOrigin = useMemo(
+    () =>
+      originOptions.find(
+        (option) =>
+          option.id === originProvinceId,
+      ) ?? null,
+    [originOptions, originProvinceId],
+  );
+
+  const selectedDestination = useMemo(
+    () =>
+      destinationOptions.find(
+        (option) =>
+          option.id === destinationProvinceId,
+      ) ?? null,
+    [
+      destinationOptions,
+      destinationProvinceId,
+    ],
+  );
+
+  const origin =
+    selectedOrigin?.name ?? "";
+  const destination =
+    selectedDestination?.name ?? "";
+
+  useEffect(() => {
+    const controller =
+      new AbortController();
+
+    async function loadProvinceOptions() {
+      try {
+        const response = await fetch(
+          "/api/trip-planner/provinces",
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
+
+        const payload =
+          (await response.json()) as ProvinceOptionsApiResponse;
+
+        if (
+          !response.ok ||
+          !Array.isArray(payload.origins) ||
+          !Array.isArray(payload.destinations)
+        ) {
+          throw new Error(
+            payload.message ??
+              "Không thể tải danh sách khu vực.",
+          );
+        }
+
+        setOriginOptions(
+          payload.origins,
+        );
+        setDestinationOptions(
+          payload.destinations,
+        );
+
+        const preferredOrigin =
+          payload.origins.find((option) =>
+            option.name
+              .toLocaleLowerCase("vi")
+              .includes("hồ chí minh"),
+          ) ?? payload.origins[0];
+
+        const preferredDestination =
+          payload.destinations.find(
+            (option) =>
+              option.name
+                .toLocaleLowerCase("vi")
+                .includes("đà lạt"),
+          ) ?? payload.destinations[0];
+
+        setOriginProvinceId(
+          (current) =>
+            current ||
+            preferredOrigin?.id ||
+            "",
+        );
+
+        setDestinationProvinceId(
+          (current) =>
+            current ||
+            preferredDestination?.id ||
+            "",
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.name === "AbortError"
+        ) {
+          return;
+        }
+
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Không thể tải danh sách khu vực.",
+        );
+      } finally {
+        if (
+          !controller.signal.aborted
+        ) {
+          setProvinceOptionsLoading(
+            false,
+          );
+        }
+      }
+    }
+
+    void loadProvinceOptions();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   function toggleInterest(
     interest: string,
@@ -346,6 +495,8 @@ export function TripPlannerLauncher({
               "application/json",
           },
           body: JSON.stringify({
+            originProvinceId,
+            destinationProvinceId,
             origin,
             destination,
             startDate,
@@ -454,7 +605,7 @@ export function TripPlannerLauncher({
                 Tạo lịch trình từ dữ liệu thật
               </h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">
-                Nhập điểm xuất phát, giờ khởi hành và phương tiện để hệ thống ước tính ETA trước khi xếp hoạt động; sở thích, mùa đi, ngân sách và tín hiệu cá nhân hóa vẫn được giữ nguyên.
+                Chọn điểm xuất phát và điểm đến từ các khu vực có trong hệ thống; giờ khởi hành, phương tiện, sở thích, mùa đi, ngân sách và tín hiệu cá nhân hóa vẫn được giữ nguyên.
               </p>
             </div>
 
@@ -477,36 +628,70 @@ export function TripPlannerLauncher({
               <span className="text-xs font-medium text-slate-300">
                 Điểm xuất phát
               </span>
-              <input
+              <select
                 required
-                maxLength={150}
-                value={origin}
+                value={originProvinceId}
+                disabled={provinceOptionsLoading}
                 onChange={(event) =>
-                  setOrigin(
+                  setOriginProvinceId(
                     event.target.value,
                   )
                 }
-                placeholder="Ví dụ: TP. Hồ Chí Minh"
-                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
-              />
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-wait disabled:opacity-60"
+              >
+                <option value="">
+                  {provinceOptionsLoading
+                    ? "Đang tải khu vực..."
+                    : "Chọn điểm xuất phát"}
+                </option>
+
+                {originOptions.map(
+                  (option) => (
+                    <option
+                      key={option.id}
+                      value={option.id}
+                      className="bg-slate-900 text-white"
+                    >
+                      {option.name}
+                    </option>
+                  ),
+                )}
+              </select>
             </label>
 
             <label className="min-w-0 lg:col-span-6">
               <span className="text-xs font-medium text-slate-300">
                 Điểm đến
               </span>
-              <input
+              <select
                 required
-                maxLength={100}
-                value={destination}
+                value={destinationProvinceId}
+                disabled={provinceOptionsLoading}
                 onChange={(event) =>
-                  setDestination(
+                  setDestinationProvinceId(
                     event.target.value,
                   )
                 }
-                placeholder="Ví dụ: Đà Lạt"
-                className="mt-2 w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10"
-              />
+                className="mt-2 w-full rounded-2xl border border-white/15 bg-slate-900/90 px-4 py-3 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 disabled:cursor-wait disabled:opacity-60"
+              >
+                <option value="">
+                  {provinceOptionsLoading
+                    ? "Đang tải khu vực..."
+                    : "Chọn điểm đến"}
+                </option>
+
+                {destinationOptions.map(
+                  (option) => (
+                    <option
+                      key={option.id}
+                      value={option.id}
+                      className="bg-slate-900 text-white"
+                    >
+                      {option.name}
+                    </option>
+                  ),
+                )}
+              </select>
             </label>
 
             <label className="min-w-0 lg:col-span-3">
@@ -704,8 +889,9 @@ export function TripPlannerLauncher({
                 type="submit"
                 disabled={
                   isSubmitting ||
-                  !origin.trim() ||
-                  !destination.trim() ||
+                  provinceOptionsLoading ||
+                  !originProvinceId ||
+                  !destinationProvinceId ||
                   !startDate ||
                   !departureTime ||
                   travelerCount < 1 ||
