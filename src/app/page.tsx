@@ -159,9 +159,9 @@ export default async function Home({
 
       <section
         id="cong-dong"
-        className="scroll-mt-6 border-t border-slate-200 bg-slate-100/70"
-      >
-        <div className="mx-auto max-w-[760px] px-3 py-7 sm:px-6 sm:py-9 lg:px-0 lg:py-10">
+        className="scroll-mt-6 border-t border-slate-200 bg-slate-100/70 relative overflow-hidden bg-[#f4f7f6]"
+       style={{ backgroundColor: "#f4f7f6", backgroundImage: "radial-gradient(circle at 8% 22%, rgba(16, 185, 129, 0.11), transparent 29%), radial-gradient(circle at 92% 34%, rgba(14, 165, 233, 0.09), transparent 27%), linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(244, 247, 246, 0.94) 42%, rgba(239, 246, 244, 0.98) 100%)" }}>
+        <div className="mx-auto max-w-[840px] px-3 py-7 sm:px-6 sm:py-9 lg:px-0 lg:py-10">
           <div className="mb-5">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
               Cộng đồng du lịch
