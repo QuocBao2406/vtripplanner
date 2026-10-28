@@ -41,13 +41,13 @@ type PostTypeFilter =
 type ModerationStateFilter =
   | "ALL"
   | "VISIBLE"
-  | "ADMIN_REMOVED"
-  | "USER_DELETED";
+  | "HIDDEN"
+  | "DELETED";
 
 type ModerationState =
   | "VISIBLE"
-  | "ADMIN_REMOVED"
-  | "USER_DELETED"
+  | "HIDDEN"
+  | "DELETED"
   | "OTHER";
 
 const TYPE_LABELS: Record<
@@ -94,8 +94,8 @@ function parseStateFilter(
 ): ModerationStateFilter {
   if (
     value === "VISIBLE" ||
-    value === "ADMIN_REMOVED" ||
-    value === "USER_DELETED"
+    value === "HIDDEN" ||
+    value === "DELETED"
   ) {
     return value;
   }
@@ -143,21 +143,16 @@ function getAuthorName(post: {
 }
 
 function getModerationState(post: {
-  type: TravelPostType;
+  type?: TravelPostType;
   status: TravelPostStatus;
   deletedAt: Date | null;
 }): ModerationState {
   if (post.deletedAt) {
-    return "USER_DELETED";
+    return "DELETED";
   }
 
-  if (
-    post.type ===
-      TravelPostType.USER_TRIP &&
-    post.status ===
-      TravelPostStatus.HIDDEN
-  ) {
-    return "ADMIN_REMOVED";
+  if (post.status === TravelPostStatus.HIDDEN) {
+    return "HIDDEN";
   }
 
   if (
@@ -247,19 +242,19 @@ function getStateBadge(
       return {
         label: "Đang hiển thị",
         className:
-          "bg-emerald-50 text-emerald-700",
+          "bg-emerald-50 text-emerald-700 border border-emerald-200",
       };
-    case "ADMIN_REMOVED":
+    case "HIDDEN":
       return {
-        label: "ADMIN đã xóa",
+        label: "Đang ẩn",
         className:
-          "bg-red-50 text-red-700",
+          "bg-amber-50 text-amber-700 border border-amber-200",
       };
-    case "USER_DELETED":
+    case "DELETED":
       return {
-        label: "User đã xóa",
+        label: "Đã xóa",
         className:
-          "bg-amber-50 text-amber-700",
+          "bg-red-50 text-red-700 border border-red-200",
       };
     default:
       return {
@@ -268,7 +263,7 @@ function getStateBadge(
           " ",
         ),
         className:
-          "bg-slate-100 text-slate-600",
+          "bg-slate-100 text-slate-600 border border-slate-200",
       };
   }
 }
@@ -374,6 +369,8 @@ export default async function AdminSocialPostsPage({
               in: [
                 "ADMIN_SOCIAL_POST_DELETE",
                 "ADMIN_SOCIAL_POST_RESTORE",
+                "ADMIN_SOCIAL_POST_HIDE",
+                "ADMIN_SOCIAL_POST_UNHIDE",
               ],
             },
           },
@@ -459,17 +456,17 @@ export default async function AdminSocialPostsPage({
       getModerationState(post) ===
       "VISIBLE",
   ).length;
-  const adminRemovedCount =
+  const hiddenCount =
     posts.filter(
       (post) =>
         getModerationState(post) ===
-        "ADMIN_REMOVED",
+        "HIDDEN",
     ).length;
-  const userDeletedCount =
+  const deletedCount =
     posts.filter(
       (post) =>
         getModerationState(post) ===
-        "USER_DELETED",
+        "DELETED",
     ).length;
 
   return (
@@ -532,26 +529,20 @@ export default async function AdminSocialPostsPage({
             </div>
 
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              ADMIN có thể xóa bài
-              USER_TRIP không hợp lệ và
-              khôi phục bài do ADMIN xử
-              lý nhầm. Xóa moderation
-              không hard-delete media,
-              reaction, comment hay save.
+              ADMIN có toàn quyền kiểm duyệt: Ẩn/Hiện bài viết trên bảng tin và
+              Xóa các bài viết vi phạm, cũng như khôi phục khi cần.
             </p>
           </div>
 
-          <div className="max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+          <div className="max-w-xl rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-950">
             <div className="flex items-start gap-2">
               <ShieldAlert
                 aria-hidden="true"
-                className="mt-0.5 size-5 shrink-0"
+                className="mt-0.5 size-5 shrink-0 text-blue-600"
               />
               <p>
-                User tự xóa và ADMIN xóa
-                là hai trạng thái riêng.
-                ADMIN không thể khôi phục
-                bài mà chính user đã xóa.
+                <strong>Ẩn bài:</strong> tạm thời ngừng hiển thị bài trên feed mà vẫn giữ nguyên dữ liệu.{" "}
+                <strong>Xóa bài:</strong> chuyển bài vào thùng rác đã xóa (Admin có thể khôi phục lại).
               </p>
             </div>
           </div>
@@ -580,23 +571,23 @@ export default async function AdminSocialPostsPage({
             </p>
           </article>
 
-          <article className="rounded-2xl border border-red-200 bg-red-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-red-700">
-              ADMIN đã xóa
+          <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+              Đang ẩn
             </p>
-            <p className="mt-2 text-3xl font-black text-red-900">
-              {adminRemovedCount.toLocaleString(
+            <p className="mt-2 text-3xl font-black text-amber-900">
+              {hiddenCount.toLocaleString(
                 "vi-VN",
               )}
             </p>
           </article>
 
-          <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-              User đã xóa
+          <article className="rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-red-700">
+              Đã xóa
             </p>
-            <p className="mt-2 text-3xl font-black text-amber-900">
-              {userDeletedCount.toLocaleString(
+            <p className="mt-2 text-3xl font-black text-red-900">
+              {deletedCount.toLocaleString(
                 "vi-VN",
               )}
             </p>
@@ -672,11 +663,11 @@ export default async function AdminSocialPostsPage({
                 <option value="VISIBLE">
                   Đang hiển thị
                 </option>
-                <option value="ADMIN_REMOVED">
-                  ADMIN đã xóa
+                <option value="HIDDEN">
+                  Đang ẩn
                 </option>
-                <option value="USER_DELETED">
-                  User đã xóa
+                <option value="DELETED">
+                  Đã xóa
                 </option>
               </select>
             </label>
@@ -753,8 +744,8 @@ export default async function AdminSocialPostsPage({
                   className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                 >
                   <div className="p-4 sm:p-5">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700">
                             {
@@ -791,64 +782,32 @@ export default async function AdminSocialPostsPage({
                             </p>
                           </div>
                         </div>
-
-                        {post.headline ? (
-                          <h2 className="mt-4 text-lg font-black leading-6 text-slate-950">
-                            {post.headline}
-                          </h2>
-                        ) : null}
-
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                          {post.caption ||
-                            "Bài viết không có caption."}
-                        </p>
                       </div>
 
-                      <div className="w-full lg:w-64">
-                        {post.type ===
-                          TravelPostType.USER_TRIP &&
-                        !post.deletedAt &&
-                        post.status ===
-                          TravelPostStatus.PUBLISHED ? (
-                          <AdminSocialPostModerationAction
-                            postId={
-                              post.id
-                            }
-                            postLabel={
-                              post.headline ??
-                              post.caption ??
-                              authorName
-                            }
-                            mode="DELETE"
-                          />
-                        ) : post.type ===
-                            TravelPostType.USER_TRIP &&
-                          !post.deletedAt &&
-                          post.status ===
-                            TravelPostStatus.HIDDEN ? (
-                          <AdminSocialPostModerationAction
-                            postId={
-                              post.id
-                            }
-                            postLabel={
-                              post.headline ??
-                              post.caption ??
-                              authorName
-                            }
-                            mode="RESTORE"
-                          />
-                        ) : (
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-500">
-                            {post.deletedAt
-                              ? "User đã tự xóa bài này; ADMIN chỉ có thể xem audit và không được khôi phục."
-                              : post.type !==
-                                  TravelPostType.USER_TRIP
-                                ? "Bài hệ thống chỉ được theo dõi ở bước này, không dùng action xóa USER_TRIP."
-                                : "Bài chưa ở trạng thái có thể moderation."}
-                          </div>
-                        )}
+                      <div className="shrink-0 sm:self-start">
+                        <AdminSocialPostModerationAction
+                          postId={post.id}
+                          postLabel={
+                            post.headline ??
+                            post.caption ??
+                            authorName
+                          }
+                          status={post.status}
+                          deletedAt={post.deletedAt}
+                        />
                       </div>
                     </div>
+
+                    {post.headline ? (
+                      <h2 className="mt-4 text-lg font-black leading-6 text-slate-950">
+                        {post.headline}
+                      </h2>
+                    ) : null}
+
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                      {post.caption ||
+                        "Bài viết không có caption."}
+                    </p>
 
                     {media.length > 0 ? (
                       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:max-w-3xl">
@@ -951,9 +910,15 @@ export default async function AdminSocialPostsPage({
                         <div className="border-t border-slate-200 px-3 py-3 text-xs leading-5 text-slate-600">
                           <p>
                             <strong>
-                              {
-                                latestModeration.action
-                              }
+                              {latestModeration.action === "ADMIN_SOCIAL_POST_HIDE"
+                                ? "ADMIN đã ẩn bài"
+                                : latestModeration.action === "ADMIN_SOCIAL_POST_UNHIDE"
+                                ? "ADMIN đã hiển thị lại bài"
+                                : latestModeration.action === "ADMIN_SOCIAL_POST_DELETE"
+                                ? "ADMIN đã xóa bài"
+                                : latestModeration.action === "ADMIN_SOCIAL_POST_RESTORE"
+                                ? "ADMIN đã khôi phục bài"
+                                : latestModeration.action}
                             </strong>{" "}
                             ·{" "}
                             {formatDateTime(
@@ -997,13 +962,8 @@ export default async function AdminSocialPostsPage({
               className="mt-0.5 size-4 shrink-0"
             />
             <p>
-              ADMIN Delete dùng
-              TravelPostStatus.HIDDEN,
-              không hard-delete database.
-              User Delete tiếp tục dùng
-              deletedAt. Vì vậy ADMIN chỉ
-              khôi phục được bài do ADMIN
-              moderation.
+              ADMIN có toàn quyền quản lý: <strong>Ẩn bài</strong> (chuyển sang trạng thái HIDDEN) để tạm ngưng xuất hiện trên bảng tin,
+              hoặc <strong>Xóa bài</strong> (đưa vào thùng rác đã xóa) và <strong>Khôi phục</strong> bất kỳ bài viết nào khi cần thiết.
             </p>
           </div>
         </div>

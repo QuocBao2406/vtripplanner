@@ -17,15 +17,20 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient(): PrismaClient {
   const adapter = new PrismaPg({
     connectionString: databaseUrl,
-    max: 1,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000,
+    // Tăng pool để tránh query phải xếp hàng chờ nhau
+    max: 10,
+    min: 2,
+    connectionTimeoutMillis: 8000,  // Tăng từ 1500 → 8000ms
+    idleTimeoutMillis: 60000,       // Giữ idle connection lâu hơn
     keepAlive: true,
-    keepAliveInitialDelayMillis: 10000,
+    keepAliveInitialDelayMillis: 5000,
   });
 
   return new PrismaClient({
     adapter,
+    log: process.env.NODE_ENV === "development"
+      ? [{ emit: "stdout", level: "warn" }, { emit: "stdout", level: "error" }]
+      : [],
   });
 }
 

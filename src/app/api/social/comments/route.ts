@@ -41,7 +41,7 @@ async function getAuthenticatedApplicationUser() {
     };
   }
 
-  const applicationUser = await prisma.user.findUnique({
+  let applicationUser = await prisma.user.findUnique({
     where: {
       id: authUser.id,
     },
@@ -49,6 +49,37 @@ async function getAuthenticatedApplicationUser() {
       id: true,
     },
   });
+
+  if (!applicationUser) {
+    try {
+      const displayName =
+        authUser.user_metadata?.display_name ||
+        authUser.user_metadata?.full_name ||
+        authUser.email?.split("@")[0] ||
+        "Thành viên VTrip";
+
+      const fullName = authUser.user_metadata?.full_name || null;
+
+      applicationUser = await prisma.user.create({
+        data: {
+          id: authUser.id,
+          email: authUser.email ?? null,
+          isActive: true,
+          profile: {
+            create: {
+              displayName,
+              fullName,
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+    } catch (e) {
+      console.warn("Failed to auto-provision user in DB for comments:", e);
+    }
+  }
 
   if (!applicationUser) {
     return {

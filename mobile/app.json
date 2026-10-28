@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "VTripPlanner",
+    "slug": "vtripplanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "vtripplanner",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#020617"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vtripplanner.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "VTripPlanner cần quyền truy cập vị trí để hỗ trợ dẫn đường và định vị trong chuyến đi.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "VTripPlanner cần quyền truy cập vị trí nền để cảnh báo an toàn và theo dõi đoàn khi di chuyển.",
+        "NSCameraUsageDescription": "VTripPlanner cần quyền truy cập máy ảnh để chụp và chia sẻ khoảnh khắc du lịch.",
+        "NSPhotoLibraryUsageDescription": "VTripPlanner cần quyền truy cập thư viện ảnh để tải ảnh lên bài viết chia sẻ."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#020617"
+      },
+      "package": "com.vtripplanner.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Cho phép $(PRODUCT_NAME) định vị thời gian thực cho đoàn phượt và cứu hộ khẩn cấp."
+        }
+      ],
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

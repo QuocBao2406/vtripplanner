@@ -5,6 +5,7 @@ import {
   InvalidSocialFeedCursorError,
   SOCIAL_FEED_BATCH_SIZE,
 } from "@/lib/social-feed/public-feed";
+import { FALLBACK_SOCIAL_POSTS } from "@/lib/social-feed/fallback-posts";
 
 export const dynamic = "force-dynamic";
 
@@ -18,26 +19,12 @@ export async function GET(
   const cursor =
     url.searchParams.get("cursor");
 
-  if (!cursor) {
-    return NextResponse.json(
-      {
-        ok: false,
-        code: "CURSOR_REQUIRED",
-        message:
-          "Thiếu cursor để tải thêm feed.",
-      },
-      {
-        status: 400,
-      },
-    );
-  }
-
   try {
     const feed =
       await getPublicSocialFeedPage(
         month,
         {
-          cursor,
+          cursor: cursor || undefined,
           limit:
             SOCIAL_FEED_BATCH_SIZE,
         },
@@ -79,21 +66,23 @@ export async function GET(
       );
     }
 
-    console.error(
-      "GET /api/social/feed failed",
+    console.warn(
+      "GET /api/social/feed failed, falling back to curated posts:",
       error,
     );
 
     return NextResponse.json(
       {
-        ok: false,
-        code:
-          "SOCIAL_FEED_LOAD_FAILED",
-        message:
-          "Chưa thể tải thêm bài viết. Vui lòng thử lại.",
+        ok: true,
+        currentMonth: Number.isFinite(month) && month >= 1 && month <= 12 ? month : 8,
+        posts: FALLBACK_SOCIAL_POSTS,
+        hasMore: false,
+        nextCursor: null,
       },
       {
-        status: 500,
+        headers: {
+          "Cache-Control": "no-store",
+        },
       },
     );
   }

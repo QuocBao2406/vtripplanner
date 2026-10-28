@@ -9,6 +9,7 @@ import {
   getPublicSocialFeed,
   getPublicSocialFeedPostById,
 } from "@/lib/social-feed/public-feed";
+import { FALLBACK_SOCIAL_POSTS } from "@/lib/social-feed/fallback-posts";
 
 export const dynamic = "force-dynamic";
 
@@ -53,18 +54,28 @@ export default async function Home({
       resolvedSearchParams.focusPost,
     );
 
-  const [feed, focusedPost] =
-    await Promise.all([
-      getPublicSocialFeed(
-        currentMonth,
-      ),
+  let feed;
+  let focusedPost = null;
+  try {
+    [feed, focusedPost] = await Promise.all([
+      getPublicSocialFeed(currentMonth),
       focusPostId
-        ? getPublicSocialFeedPostById(
-            currentMonth,
-            focusPostId,
-          )
+        ? getPublicSocialFeedPostById(currentMonth, focusPostId)
         : Promise.resolve(null),
     ]);
+  } catch (error) {
+    console.warn("Home page feed load failed, using fallback:", error);
+    feed = {
+      currentMonth,
+      posts: FALLBACK_SOCIAL_POSTS,
+      hasMore: false,
+      nextCursor: null,
+      sessionKey: new Date().toISOString(),
+    };
+    focusedPost = focusPostId
+      ? FALLBACK_SOCIAL_POSTS.find((p) => p.id === focusPostId) ?? null
+      : null;
+  }
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-950">

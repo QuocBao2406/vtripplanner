@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
+import { TripStatus } from "@/generated/prisma/enums";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,174 @@ function errorResponse(
     },
     { status },
   );
+}
+
+export async function GET(request: Request): Promise<NextResponse> {
+  const authorization = await getAuthenticatedApplicationUser();
+
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
+  const userId = authorization.applicationUser.id;
+  const url = new URL(request.url);
+  const tripId = url.searchParams.get("tripId");
+
+  try {
+    if (tripId) {
+      const tripIdError = validateTripId(tripId);
+      if (tripIdError) {
+        return tripIdError;
+      }
+
+      const trip = await prisma.trip.findFirst({
+        where: {
+          id: tripId,
+          ownerUserId: userId,
+          deletedAt: null,
+        },
+        include: {
+          days: {
+            orderBy: { dayNumber: "asc" },
+            include: {
+              activities: {
+                orderBy: { startsAt: "asc" },
+                include: {
+                  place: {
+                    select: {
+                      id: true,
+                      name: true,
+                      addressLine: true,
+                      latitude: true,
+                      longitude: true,
+                      images: {
+                        where: { isCover: true },
+                        take: 1,
+                        select: { storagePath: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          checklists: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              items: {
+                orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+              },
+            },
+          },
+          expenseEntries: {
+            orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+          },
+          managedBudget: true,
+        },
+      });
+
+      if (!trip) {
+        return errorResponse(404, "TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.");
+      }
+
+      return NextResponse.json({
+        ok: true,
+        trip,
+      });
+    }
+
+    const trips = await prisma.trip.findMany({
+      where: {
+        ownerUserId: userId,
+        deletedAt: null,
+      },
+      orderBy: [
+        { createdAt: "desc" },
+        { startDate: "desc" },
+      ],
+      take: 50,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        originName: true,
+        destinationName: true,
+        departureAt: true,
+        estimatedArrivalAt: true,
+        estimatedTravelDistanceKm: true,
+        estimatedTravelDurationMinutes: true,
+        travelerCount: true,
+        totalBudget: true,
+        estimatedTotalCost: true,
+        currency: true,
+        createdAt: true,
+        days: {
+          orderBy: { dayNumber: "asc" },
+          select: {
+            id: true,
+            dayNumber: true,
+            date: true,
+            activities: {
+              orderBy: { startsAt: "asc" },
+              select: {
+                id: true,
+                title: true,
+                type: true,
+                startsAt: true,
+                endsAt: true,
+                place: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        checklists: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            title: true,
+            items: {
+              orderBy: { sortOrder: "asc" },
+              select: {
+                id: true,
+                title: true,
+                status: true,
+              },
+            },
+          },
+        },
+        expenseEntries: {
+          select: {
+            id: true,
+            category: true,
+            actualAmount: true,
+            estimatedAmount: true,
+          },
+        },
+        managedBudget: {
+          select: {
+            plannedAmount: true,
+            contingencyAmount: true,
+            currency: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      trips,
+    });
+  } catch (error) {
+    console.error("GET /api/trips/manage failed:", error);
+    return errorResponse(500, "TRIPS_FETCH_FAILED", "Không thể lấy danh sách chuyến đi.");
+  }
 }
 
 async function getAuthenticatedApplicationUser() {
@@ -166,6 +335,10 @@ export async function PATCH(
     payload.record,
     "title",
   );
+  const status = readString(
+    payload.record,
+    "status",
+  );
 
   const tripIdError =
     validateTripId(tripId);
@@ -174,15 +347,15 @@ export async function PATCH(
     return tripIdError;
   }
 
-  if (!title) {
+  if (!title && !status) {
     return errorResponse(
       400,
-      "TITLE_REQUIRED",
-      "Tên chuyến đi không được để trống.",
+      "DATA_REQUIRED",
+      "Vui lòng cung cấp tên hoặc trạng thái cần cập nhật.",
     );
   }
 
-  if (title.length > MAX_TITLE_LENGTH) {
+  if (title && title.length > MAX_TITLE_LENGTH) {
     return errorResponse(
       400,
       "TITLE_TOO_LONG",
@@ -190,10 +363,23 @@ export async function PATCH(
     );
   }
 
+  const validStatuses: Record<string, TripStatus> = TripStatus;
+  if (status && !validStatuses[status]) {
+    return errorResponse(
+      400,
+      "INVALID_STATUS",
+      `Trạng thái '${status}' không hợp lệ.`,
+    );
+  }
+
   const userId =
     authorization.applicationUser.id;
 
   try {
+    const updateData: Record<string, unknown> = {};
+    if (title) updateData.title = title;
+    if (status) updateData.status = status as TripStatus;
+
     const updateResult =
       await prisma.trip.updateMany({
         where: {
@@ -201,9 +387,7 @@ export async function PATCH(
           ownerUserId: userId,
           deletedAt: null,
         },
-        data: {
-          title,
-        },
+        data: updateData,
       });
 
     if (updateResult.count !== 1) {
@@ -222,19 +406,20 @@ export async function PATCH(
       ok: true,
       trip: {
         id: tripId,
-        title,
+        ...(title ? { title } : {}),
+        ...(status ? { status } : {}),
       },
     });
   } catch (error) {
     console.error(
-      "Trip rename failed:",
+      "Trip update failed:",
       error,
     );
 
     return errorResponse(
       500,
-      "TRIP_RENAME_FAILED",
-      "Không thể đổi tên chuyến đi. Vui lòng thử lại.",
+      "TRIP_UPDATE_FAILED",
+      "Không thể cập nhật chuyến đi. Vui lòng thử lại.",
     );
   }
 }

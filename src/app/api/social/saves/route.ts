@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
+import { getSavedSocialPosts } from "@/lib/social-feed/saved-posts";
 
 export const runtime = "nodejs";
 
@@ -133,6 +134,45 @@ function revalidateSocialPaths() {
   revalidatePath("/");
   revalidatePath("/bai-viet-da-luu");
   revalidatePath("/bai-viet-cua-toi");
+}
+
+export async function GET(): Promise<NextResponse> {
+  const authorization =
+    await getAuthenticatedApplicationUser();
+
+  if (!authorization.ok) {
+    return authorization.response;
+  }
+
+  try {
+    const posts =
+      await getSavedSocialPosts(
+        authorization.applicationUser.id,
+      );
+
+    return NextResponse.json(
+      {
+        ok: true,
+        posts,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      },
+    );
+  } catch (error) {
+    console.error(
+      "GET /api/social/saves failed:",
+      error,
+    );
+
+    return errorResponse(
+      500,
+      "SAVED_POSTS_LOAD_FAILED",
+      "Không thể tải bài viết đã lưu. Vui lòng thử lại.",
+    );
+  }
 }
 
 export async function POST(

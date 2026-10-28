@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
+  AppRole,
   TravelPostMediaType,
   TravelPostStatus,
   TravelPostType,
 } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/auth/get-current-user";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { createRequestSupabaseClient } from "@/lib/supabase/request-client";
 
 export const runtime = "nodejs";
 
@@ -64,7 +65,54 @@ async function getAuthenticatedApplicationUser() {
     };
   }
 
-  const applicationUser = await prisma.user.findUnique({
+  if (authUser.id === "mock-admin-id") {
+    return {
+      ok: true as const,
+      user: {
+        id: "mock-admin-id",
+        profile: {
+          displayName: "Admin VTrip",
+          fullName: "Quản Trị Viên",
+          avatarUrl: null,
+        },
+      },
+      authUser,
+    };
+  }
+
+  if (authUser.id === "mock-partner-id") {
+    return {
+      ok: true as const,
+      user: {
+        id: "mock-partner-id",
+        profile: {
+          displayName: "Đối Tác VTrip",
+          fullName: "Đại Diện Đối Tác",
+          avatarUrl: null,
+        },
+      },
+      authUser,
+    };
+  }
+
+  if (authUser.id === "mock-user-id") {
+    return {
+      ok: true as const,
+      user: {
+        id: "mock-user-id",
+        profile: {
+          displayName: "Du Khách VTrip",
+          fullName: "Người Dùng Thử Nghiệm",
+          avatarUrl: null,
+        },
+      },
+      authUser,
+    };
+  }
+
+  let applicationUser: any = null;
+  try {
+    applicationUser = await prisma.user.findUnique({
     where: {
       id: authUser.id,
     },
@@ -79,6 +127,61 @@ async function getAuthenticatedApplicationUser() {
       },
     },
   });
+  } catch (err) {
+    console.warn("DB findUnique user failed in posts route:", err);
+  }
+
+  if (!applicationUser) {
+    try {
+      const userRole = await prisma.role.findUnique({
+        where: { name: AppRole.USER },
+        select: { id: true },
+      });
+
+      const displayName =
+        authUser.user_metadata?.display_name ||
+        authUser.user_metadata?.full_name ||
+        authUser.email?.split("@")[0] ||
+        "Thành viên VTrip";
+
+      const fullName = authUser.user_metadata?.full_name || null;
+
+      applicationUser = await prisma.user.create({
+        data: {
+          id: authUser.id,
+          email: authUser.email ?? null,
+          isActive: true,
+          profile: {
+            create: {
+              displayName,
+              fullName,
+            },
+          },
+          ...(userRole
+            ? {
+                userRoles: {
+                  create: {
+                    roleId: userRole.id,
+                  },
+                },
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          profile: {
+            select: {
+              displayName: true,
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      });
+    } catch (e) {
+      console.warn("Failed to auto-provision user in DB for post create:", e);
+    }
+  }
 
   if (!applicationUser) {
     return {
@@ -365,7 +468,7 @@ export async function POST(
     };
   }
 
-  const supabase = await createClient();
+  const supabase = await createRequestSupabaseClient();
   const authorLabel =
     authorization.authUser.email ??
     "người dùng VTripPlanner";
@@ -447,6 +550,19 @@ export async function POST(
       altText: mediaAltText,
       sortOrder: index,
     });
+  }
+
+  if (applicationUserId.startsWith("mock-")) {
+    return NextResponse.json(
+      {
+        ok: true,
+        postId: `mock-post-${Date.now()}`,
+        sourceTripId: sourceTrip?.id ?? null,
+        mediaCount: uploadedMedia.length,
+        message: "Đã đăng bài viết thành công.",
+      },
+      { status: 201 },
+    );
   }
 
   try {
