@@ -171,18 +171,18 @@ async function main() {
       ],
       'bao-tang-thanh-pho-ho-chi-minh': [
         { url: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1200&q=80', alt: 'Bảo tàng Thành phố Hồ Chí Minh - Dinh Gia Long cổ kính' },
-        { url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=80', alt: 'Cầu thang hoa văn nghệ thuật bên trong bảo tàng' }
+        { url: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80', alt: 'Cầu thang hoa văn nghệ thuật bên trong bảo tàng' }
       ],
       'ben-nha-rong': [
         { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Bến Nhà Rồng soi bóng bên sông Sài Gòn' },
         { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Khu lưu niệm Chủ tịch Hồ Chí Minh Bến Nhà Rồng' }
       ],
       'chua-ngoc-hoang': [
-        { url: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&w=1200&q=80', alt: 'Chùa Ngọc Hoàng - Điện Phước Hải cổ kính linh thiêng' },
+        { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Chùa Ngọc Hoàng - Điện Phước Hải cổ kính linh thiêng' },
         { url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80', alt: 'Nhang trầm tỏa khói an yên tại Chùa Ngọc Hoàng' }
       ],
       'cong-vien-ben-bach-dang': [
-        { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Công viên Bến Bạch Đằng view Landmark 81 lung linh' },
+        { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Công viên Bến Bạch Đằng view Landmark 81 lung linh' },
         { url: 'https://images.unsplash.com/photo-1498084393753-b411b2d26b34?auto=format&fit=crop&w=1200&q=80', alt: 'Không gian tản bộ ngắm sông Sài Gòn lộng gió' }
       ],
       'cho-da-lat': [
@@ -290,7 +290,7 @@ async function main() {
         bestVisitMonths: [1, 2, 3, 4, 5, 9, 10, 11, 12],
         images: [
           { url: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1200&q=80', alt: 'Quảng trường Ba Đình và Lăng Chủ tịch Hồ Chí Minh' },
-          { url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=80', alt: 'Chùa Một Cột gần Lăng Bác Ba Đình' }
+          { url: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80', alt: 'Chùa Một Cột gần Lăng Bác Ba Đình' }
         ]
       },
       {
@@ -305,7 +305,7 @@ async function main() {
         description: 'Chùa Trấn Quốc là trung tâm Phật giáo của kinh thành Thăng Long thời Lý - Trần. Ngôi bảo tháp lục độ đài sen cao 15m cùng cây bồ đề do Tổng thống Ấn Độ trao tặng tạo nên cảnh sắc thanh tịnh tuyệt mỹ.',
         bestVisitMonths: [1, 2, 3, 10, 11, 12],
         images: [
-          { url: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&w=1200&q=80', alt: 'Bảo tháp Chùa Trấn Quốc lung linh soi bóng Hồ Tây' },
+          { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Bảo tháp Chùa Trấn Quốc lung linh soi bóng Hồ Tây' },
           { url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80', alt: 'Hoàng hôn thanh tịnh bên Chùa Trấn Quốc' }
         ]
       },
@@ -356,7 +356,7 @@ async function main() {
         bestVisitMonths: [2, 3, 4, 5, 6, 7, 8],
         images: [
           { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Tượng Phật Bà Quan Âm Chùa Linh Ứng Sơn Trà hướng biển' },
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Khung cảnh đại dương xanh thẳm từ đỉnh Sơn Trà' }
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Khung cảnh đại dương xanh thẳm từ đỉnh Sơn Trà' }
         ]
       },
       {
@@ -404,7 +404,7 @@ async function main() {
         bestVisitMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         images: [
           { url: 'https://images.unsplash.com/photo-1498084393753-b411b2d26b34?auto=format&fit=crop&w=1200&q=80', alt: 'Cầu Rồng Đà Nẵng rực sáng soi bóng dòng sông Hàn về đêm' },
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Màn trình diễn phun lửa ngoạn mục tại Cầu Rồng' }
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Màn trình diễn phun lửa ngoạn mục tại Cầu Rồng' }
         ]
       },
 
@@ -469,7 +469,7 @@ async function main() {
         description: 'Đến với làng gốm Thanh Hà, du khách được tận mắt chứng kiến bàn tay tài hoa của các nghệ nhân vuốt gốm thủ công bằng chân xoay và tự tay nặn những sản phẩm gốm kỷ niệm độc đáo.',
         bestVisitMonths: [1, 2, 3, 4, 5, 6, 7, 8],
         images: [
-          { url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=80', alt: 'Nghệ nhân tạo hình sản phẩm gốm đất nung Thanh Hà' },
+          { url: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1200&q=80', alt: 'Nghệ nhân tạo hình sản phẩm gốm đất nung Thanh Hà' },
           { url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80', alt: 'Công viên Đất Nung Thanh Hà kiến trúc gạch đỏ độc đáo' }
         ]
       },
@@ -503,7 +503,7 @@ async function main() {
         description: 'Được xây dựng từ năm 1601 thời Chúa Tiên Nguyễn Hoàng, Chùa Thiên Mụ (Linh Mụ) gắn liền với tiếng chuông sớm chiều ngân vang khắp dòng Hương Giang. Ngôi chùa là biểu tượng bất biến cho vẻ đẹp trầm mặc của xứ Huế.',
         bestVisitMonths: [1, 2, 3, 4, 5, 6, 7, 8],
         images: [
-          { url: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&w=1200&q=80', alt: 'Tháp Phước Duyên Chùa Thiên Mụ soi bóng dòng sông Hương' },
+          { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Tháp Phước Duyên Chùa Thiên Mụ soi bóng dòng sông Hương' },
           { url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80', alt: 'Hoàng hôn đỏ ửng trên bến thuyền Chùa Thiên Mụ' }
         ]
       },
@@ -553,7 +553,7 @@ async function main() {
         description: 'Tam Cốc gồm ba hang: Hang Cả, Hang Hai và Hang Ba được tạo thành do dòng sông Ngô Đồng đâm xuyên qua núi. Vào tháng 5-6 hàng năm, cả thung lũng Tam Cốc rực rỡ sắc vàng mùa lúa chín tạo nên bức tranh thiên nhiên tuyệt mỹ.',
         bestVisitMonths: [1, 2, 3, 5, 6, 9, 10],
         images: [
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Cánh đồng lúa chín vàng Tam Cốc bên dòng sông Ngô Đồng' },
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Cánh đồng lúa chín vàng Tam Cốc bên dòng sông Ngô Đồng' },
           { url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80', alt: 'Chùa Bích Động mái ngói rêu phong tựa lưng vào vách núi' }
         ]
       },
@@ -619,7 +619,7 @@ async function main() {
         description: 'Đèo Ô Quy Hồ vắt ngang dãy Hoàng Liên Sơn nối liền Lào Cai và Lai Châu. Tại điểm Cổng Trời ở độ cao hơn 2.000m, du khách được ngắm nhìn bức tranh thiên nhiên hùng vĩ với mây trôi bồng bềnh và ánh hoàng hôn buông xuống thung lũng.',
         bestVisitMonths: [9, 10, 11, 12, 1, 2, 3],
         images: [
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Cung đường đèo Ô Quy Hồ uốn lượn ngoạn mục giữa mây núi' },
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Cung đường đèo Ô Quy Hồ uốn lượn ngoạn mục giữa mây núi' },
           { url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80', alt: 'Hoàng hôn rực lửa trên đỉnh Cổng Trời Ô Quy Hồ' }
         ]
       },
@@ -704,7 +704,7 @@ async function main() {
         bestVisitMonths: [11, 12, 1, 2, 3, 4, 5],
         images: [
           { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Cabin cáp treo Hòn Thơm bay qua đại dương xanh biếc' },
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Toàn cảnh quần đảo An Thới nhìn từ cáp treo Hòn Thơm' }
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Toàn cảnh quần đảo An Thới nhìn từ cáp treo Hòn Thơm' }
         ]
       },
 
@@ -721,7 +721,7 @@ async function main() {
         description: 'Tháp Bà Ponagar tọa lạc trên đồi Cù Lao nhìn ra dòng sông Cái Nha Trang hiền hòa. Quần thể là di tích tôn giáo lớn nhất còn tồn tại của vương quốc Chăm Pa cổ đại với kỹ thuật xây gạch không mạch nối kỳ diệu.',
         bestVisitMonths: [1, 2, 3, 4, 5, 6, 7, 8],
         images: [
-          { url: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&w=1200&q=80', alt: 'Quần thể đền tháp Chăm Pa cổ kính Ponagar Nha Trang' },
+          { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Quần thể đền tháp Chăm Pa cổ kính Ponagar Nha Trang' },
           { url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80', alt: 'Điệu múa Chăm truyền thống bên chân Tháp Bà Ponagar' }
         ]
       }
@@ -953,7 +953,7 @@ async function main() {
         placeSlug: 'thap-ba-ponagar-nha-trang',
         seasonMonths: [1, 2, 3, 4, 5, 6, 7, 8],
         images: [
-          { url: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&w=1200&q=80', alt: 'Tháp Bà Ponagar sừng sững uy nghi trong nắng vàng Nha Trang' },
+          { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Tháp Bà Ponagar sừng sững uy nghi trong nắng vàng Nha Trang' },
           { url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80', alt: 'Điệu múa duyên dáng của các thiếu nữ Chăm bên tháp cổ' }
         ]
       },
@@ -965,7 +965,7 @@ async function main() {
         placeSlug: 'cong-vien-ben-bach-dang',
         seasonMonths: [1, 2, 3, 11, 12],
         images: [
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Bến Bạch Đằng và skyline lung linh ánh đèn TP.HCM về đêm' },
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Bến Bạch Đằng và skyline lung linh ánh đèn TP.HCM về đêm' },
           { url: 'https://images.unsplash.com/photo-1498084393753-b411b2d26b34?auto=format&fit=crop&w=1200&q=80', alt: 'Du thuyền sông Sài Gòn rẽ sóng lướt đi trong đêm' }
         ]
       },
@@ -990,7 +990,7 @@ async function main() {
         seasonMonths: [4, 5, 6, 7, 8, 9],
         images: [
           { url: 'https://images.unsplash.com/photo-1498084393753-b411b2d26b34?auto=format&fit=crop&w=1200&q=80', alt: 'Cầu Rồng Đà Nẵng rực lửa trên nền trời đêm sông Hàn' },
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Màn phun nước mát lạnh thu hút đông đảo du khách' }
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Màn phun nước mát lạnh thu hút đông đảo du khách' }
         ]
       },
       {
@@ -1013,7 +1013,7 @@ async function main() {
         placeSlug: 'chua-tran-quoc',
         seasonMonths: [1, 2, 3, 10, 11, 12],
         images: [
-          { url: 'https://images.unsplash.com/photo-1548013146-72479768bbaa?auto=format&fit=crop&w=1200&q=80', alt: 'Bảo tháp Chùa Trấn Quốc soi bóng nước mênh mông Hồ Tây' },
+          { url: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=1200&q=80', alt: 'Bảo tháp Chùa Trấn Quốc soi bóng nước mênh mông Hồ Tây' },
           { url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80', alt: 'Cảnh sắc thanh tịnh an yên tại ngôi chùa cổ nghìn năm' }
         ]
       },
@@ -1026,7 +1026,7 @@ async function main() {
         seasonMonths: [11, 12, 1, 2, 3, 4],
         images: [
           { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Cabin cáp treo lướt qua bầu trời ngắm đại dương xanh biếc' },
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Quần đảo An Thới nhìn từ trên cao đẹp như tranh vẽ' }
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Quần đảo An Thới nhìn từ trên cao đẹp như tranh vẽ' }
         ]
       },
       {
@@ -1037,7 +1037,7 @@ async function main() {
         placeSlug: 'deo-o-quy-ho-cong-troi',
         seasonMonths: [9, 10, 11, 12, 1, 2],
         images: [
-          { url: 'https://images.unsplash.com/photo-1508873696983-2df57036476b?auto=format&fit=crop&w=1200&q=80', alt: 'Cung đường đèo Ô Quy Hồ ngoằn ngoèo hùng vĩ giữa mây trời' },
+          { url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', alt: 'Cung đường đèo Ô Quy Hồ ngoằn ngoèo hùng vĩ giữa mây trời' },
           { url: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80', alt: 'Hoàng hôn nhuộm vàng rực rỡ đỉnh Cổng Trời Ô Quy Hồ' }
         ]
       }

@@ -18,12 +18,55 @@ type ImageTileProps = {
   onOpen: () => void;
 };
 
+/** Ảnh dự phòng nằm trong /public nên luôn tải được. */
+const FALLBACK_IMAGE_URL =
+  "/images/vtripplanner-hero-tuyen-lam.jpg";
+
+/**
+ * Ảnh vẽ bằng CSS background không báo lỗi khi link hỏng (ví dụ ảnh Unsplash
+ * bị gỡ), nên ô sẽ trống. Hook này tải thử ảnh và trả về ảnh dự phòng nếu lỗi.
+ */
+function useImageWithFallback(
+  url: string,
+): string {
+  const [failedUrl, setFailedUrl] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    if (!url) {
+      return;
+    }
+
+    let cancelled = false;
+    const probe = new Image();
+
+    probe.onerror = () => {
+      if (!cancelled) {
+        setFailedUrl(url);
+      }
+    };
+    probe.src = url;
+
+    return () => {
+      cancelled = true;
+      probe.onerror = null;
+    };
+  }, [url]);
+
+  return !url || failedUrl === url
+    ? FALLBACK_IMAGE_URL
+    : url;
+}
+
 function ImageTile({
   image,
   className = "",
   extraCount = 0,
   onOpen,
 }: ImageTileProps) {
+  const imageUrl =
+    useImageWithFallback(image.url);
+
   return (
     <button
       type="button"
@@ -35,7 +78,7 @@ function ImageTile({
       }
       className={`relative min-h-0 overflow-hidden bg-slate-100 bg-cover bg-center transition hover:brightness-95 ${className}`}
       style={{
-        backgroundImage: `url("${image.url}")`,
+        backgroundImage: `url("${imageUrl}")`,
       }}
     >
       {extraCount > 0 ? (
@@ -44,6 +87,26 @@ function ImageTile({
         </span>
       ) : null}
     </button>
+  );
+}
+
+function LightboxImage({
+  image,
+}: {
+  image: PublicSocialFeedMedia;
+}) {
+  const imageUrl =
+    useImageWithFallback(image.url);
+
+  return (
+    <div
+      role="img"
+      aria-label={image.altText}
+      className="h-[78svh] w-full max-w-6xl bg-contain bg-center bg-no-repeat sm:h-[82vh] sm:w-[86vw]"
+      style={{
+        backgroundImage: `url("${imageUrl}")`,
+      }}
+    />
   );
 }
 
@@ -266,13 +329,8 @@ export function SocialPostMediaGallery({
             </button>
           ) : null}
 
-          <div
-            role="img"
-            aria-label={activeImage.altText}
-            className="h-[78svh] w-full max-w-6xl bg-contain bg-center bg-no-repeat sm:h-[82vh] sm:w-[86vw]"
-            style={{
-              backgroundImage: `url("${activeImage.url}")`,
-            }}
+          <LightboxImage
+            image={activeImage}
           />
 
           {images.length > 1 ? (
