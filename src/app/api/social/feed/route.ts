@@ -6,6 +6,7 @@ import {
   SOCIAL_FEED_BATCH_SIZE,
 } from "@/lib/social-feed/public-feed";
 import { FALLBACK_SOCIAL_POSTS } from "@/lib/social-feed/fallback-posts";
+import { resolveFeedMonth } from "@/lib/social-feed/current-month";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,8 @@ export async function GET(
   request: Request,
 ) {
   const url = new URL(request.url);
-  const month = Number(
+  // Web và mobile phải xếp hạng theo cùng một tháng; thiếu tháng thì dùng giờ Việt Nam.
+  const month = resolveFeedMonth(
     url.searchParams.get("month"),
   );
   const cursor =
@@ -39,6 +41,8 @@ export async function GET(
         hasMore: feed.hasMore,
         nextCursor:
           feed.nextCursor,
+        snapshotAt:
+          feed.sessionKey,
       },
       {
         headers: {
@@ -74,10 +78,11 @@ export async function GET(
     return NextResponse.json(
       {
         ok: true,
-        currentMonth: Number.isFinite(month) && month >= 1 && month <= 12 ? month : 8,
+        currentMonth: month,
         posts: FALLBACK_SOCIAL_POSTS,
         hasMore: false,
         nextCursor: null,
+        snapshotAt: new Date().toISOString(),
       },
       {
         headers: {

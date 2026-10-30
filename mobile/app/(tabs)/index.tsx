@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
+  AppState,
   View,
   Text,
   FlatList,
@@ -18,9 +19,11 @@ import {
   User,
   Compass,
   FileText,
+  ArrowUp,
+  RefreshCw,
 } from "lucide-react-native";
 import Haptics from "../../src/utils/haptics";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
   api,
   type SocialFeedItem,
@@ -31,8 +34,9 @@ import { PostComposerModal } from "../../src/components/PostComposerModal";
 import { PostCard, isEditorialPost } from "../../src/components/social/PostCard";
 import { emitPostPatch, useSyncedPosts } from "../../src/lib/postEvents";
 import { useAuth } from "../../src/context/auth";
-import { MOCK_FEED_POSTS } from "../../src/constants/mockData";
 import { COLORS, resolveMediaUrl } from "../../src/constants/theme";
+
+const NEW_POST_POLL_INTERVAL_MS = 60_000;
 
 export default function SocialFeedScreen() {
   const router = useRouter();
@@ -53,25 +57,36 @@ export default function SocialFeedScreen() {
   const [selectedPostForComments, setSelectedPostForComments] = useState<SocialFeedItem | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
 
+  // Đồng bộ với web: cùng tháng xếp hạng và cùng cơ chế báo bài mới.
+  const feedMonthRef = useRef<number | null>(null);
+  const snapshotAtRef = useRef<string | null>(null);
+  const isCheckingUpdatesRef = useRef(false);
+  const listRef = useRef<FlatList<SocialFeedItem>>(null);
+  const [hasNewPosts, setHasNewPosts] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
+
   // Fetch Social Feed
   const fetchFeed = useCallback(async (cursor?: string, refresh = false) => {
     try {
-      const data = await api.getFeed(cursor);
-      if (data.posts && data.posts.length > 0) {
-        if (refresh) {
-          setPosts(data.posts);
-        } else {
-          setPosts((prev) => [...prev, ...data.posts]);
-        }
-        setNextCursor(data.nextCursor);
-        setHasMore(data.hasMore);
-      } else if (refresh) {
-        setPosts(MOCK_FEED_POSTS);
-      }
-    } catch (error) {
-      console.warn("Failed to load live feed, using fallback:", error);
+      const data = await api.getFeed(cursor, feedMonthRef.current ?? undefined);
       if (refresh) {
-        setPosts(MOCK_FEED_POSTS);
+        setPosts(data.posts);
+        feedMonthRef.current = data.currentMonth;
+        snapshotAtRef.current = data.snapshotAt;
+        setHasNewPosts(false);
+      } else {
+        setPosts((prev) => {
+          const seen = new Set(prev.map((p) => p.id));
+          return [...prev, ...data.posts.filter((p) => !seen.has(p.id))];
+        });
+      }
+      setNextCursor(data.nextCursor);
+      setHasMore(data.hasMore);
+      setFeedError(null);
+    } catch (error) {
+      console.warn("Failed to load live feed:", error);
+      if (refresh) {
+        setFeedError("Không kết nối được máy chủ. Kéo xuống hoặc bấm Thử lại để tải lại bảng tin.");
       }
     } finally {
       setIsFeedLoading(false);
@@ -82,6 +97,41 @@ export default function SocialFeedScreen() {
   useEffect(() => {
     fetchFeed(undefined, true);
   }, []);
+
+  const reloadFeed = useCallback(() => {
+    setIsFeedRefreshing(true);
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    fetchFeed(undefined, true);
+  }, [fetchFeed]);
+
+  const checkForNewPosts = useCallback(async () => {
+    const month = feedMonthRef.current;
+    const snapshotAt = snapshotAtRef.current;
+    if (!month || !snapshotAt || isCheckingUpdatesRef.current) return;
+    isCheckingUpdatesRef.current = true;
+    try {
+      if (await api.checkFeedUpdates(month, snapshotAt)) setHasNewPosts(true);
+    } catch {
+      // Lỗi mạng tạm thời: bỏ qua, lần dò sau thử lại.
+    } finally {
+      isCheckingUpdatesRef.current = false;
+    }
+  }, []);
+
+  // Dò bài mới mỗi 60 giây khi tab đang mở, và ngay khi quay lại tab/app (giống web).
+  useFocusEffect(
+    useCallback(() => {
+      checkForNewPosts();
+      const interval = setInterval(checkForNewPosts, NEW_POST_POLL_INTERVAL_MS);
+      const appStateSub = AppState.addEventListener("change", (state) => {
+        if (state === "active") checkForNewPosts();
+      });
+      return () => {
+        clearInterval(interval);
+        appStateSub.remove();
+      };
+    }, [checkForNewPosts]),
+  );
 
   const handleOpenComposer = () => {
     Haptics.selectionAsync();
@@ -304,6 +354,17 @@ export default function SocialFeedScreen() {
             Đang tải bảng tin du lịch cộng đồng...
           </Text>
         </View>
+      ) : feedError && posts.length === 0 ? (
+        <View className="flex-1 items-center justify-center p-6">
+          <RefreshCw size={40} color="#334155" />
+          <Text className="text-white font-bold text-base mt-3 text-center">
+            Không tải được bảng tin
+          </Text>
+          <Text className="text-slate-400 text-xs mt-1 text-center">{feedError}</Text>
+          <TouchableOpacity onPress={reloadFeed} className="mt-4 bg-emerald-500 px-4 py-2 rounded-xl">
+            <Text className="text-slate-950 font-black text-xs">Thử lại</Text>
+          </TouchableOpacity>
+        </View>
       ) : filteredPosts.length === 0 ? (
         <View className="flex-1 items-center justify-center p-6">
           <Compass size={44} color="#334155" />
@@ -322,6 +383,7 @@ export default function SocialFeedScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={filteredPosts}
           keyExtractor={(item) => item.id}
           renderItem={renderFeedPost}
@@ -329,7 +391,7 @@ export default function SocialFeedScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isFeedRefreshing}
-              onRefresh={() => fetchFeed(undefined, true)}
+              onRefresh={reloadFeed}
               tintColor={COLORS.primary}
             />
           }
@@ -340,13 +402,28 @@ export default function SocialFeedScreen() {
         />
       )}
 
+      {/* Báo có bài mới, giống nút "bài viết mới" trên web */}
+      {hasNewPosts && !isFeedLoading && (
+        <View pointerEvents="box-none" style={{ position: "absolute", top: topPadding + 56, left: 0, right: 0, alignItems: "center" }}>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.selectionAsync();
+              reloadFeed();
+            }}
+            accessibilityLabel="Có bài viết mới, bấm để tải lại"
+            className="bg-emerald-500 px-4 py-2 rounded-full flex-row items-center shadow-lg shadow-emerald-500/30"
+          >
+            <ArrowUp size={14} color="#020617" />
+            <Text className="text-slate-950 font-black text-xs ml-1.5">Có bài viết mới</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Post Composer Modal */}
       <PostComposerModal
         visible={isComposerOpen}
         onClose={() => setIsComposerOpen(false)}
-        onPostCreated={() => {
-          fetchFeed(undefined, true);
-        }}
+        onPostCreated={reloadFeed}
       />
 
       {/* Comments Modal */}

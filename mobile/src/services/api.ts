@@ -615,14 +615,21 @@ export const api = {
     return data;
   },
 
-  async getFeed(cursor?: string): Promise<{
+  /**
+   * Lấy một trang bảng tin. Truyền `month` để xếp hạng giống hệt web; nếu bỏ
+   * trống, server dùng tháng hiện tại theo giờ Việt Nam.
+   */
+  async getFeed(cursor?: string, month?: number): Promise<{
     posts: SocialFeedItem[];
     nextCursor: string | null;
     hasMore: boolean;
+    currentMonth: number | null;
+    snapshotAt: string | null;
   }> {
     const authHeaders = await getAuthHeader();
     const url = new URL(`${API_BASE_URL}/api/social/feed`);
     if (cursor) url.searchParams.set("cursor", cursor);
+    if (month) url.searchParams.set("month", String(month));
 
     const res = await fetchWithTimeout(url.toString(), {
       headers: {
@@ -637,7 +644,22 @@ export const api = {
       posts: data.posts || [],
       nextCursor: data.nextCursor || null,
       hasMore: Boolean(data.hasMore),
+      currentMonth: Number(data.currentMonth) || null,
+      snapshotAt: typeof data.snapshotAt === "string" ? data.snapshotAt : null,
     };
+  },
+
+  /** Hỏi server có bài mới đăng sau mốc `snapshotAt` hay không (giống web). */
+  async checkFeedUpdates(month: number, snapshotAt: string): Promise<boolean> {
+    const authHeaders = await getAuthHeader();
+    const url = new URL(`${API_BASE_URL}/api/social/feed/updates`);
+    url.searchParams.set("month", String(month));
+    url.searchParams.set("snapshotAt", snapshotAt);
+
+    const res = await fetchWithTimeout(url.toString(), { headers: { ...authHeaders } });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => ({}));
+    return Boolean(data.ok && data.hasNewPosts);
   },
 
   /**
